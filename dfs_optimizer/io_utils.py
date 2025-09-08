@@ -42,13 +42,19 @@ def write_excel_with_tabs(
     params_df: pd.DataFrame,
     lineups_df: pd.DataFrame,
     path: str,
+    players_df: Optional[pd.DataFrame] = None,
 ) -> None:
     ensure_dir(path)
     with pd.ExcelWriter(path, engine="xlsxwriter") as writer:
         projections_df.to_excel(writer, sheet_name="Projections", index=False)
         params_df.to_excel(writer, sheet_name="Parameters", index=False)
         lineups_df.to_excel(writer, sheet_name="Lineups", index=False)
-    logger.info("Wrote Excel workbook: %s (tabs: Projections, Parameters, Lineups)", path)
+        if players_df is not None:
+            players_df.to_excel(writer, sheet_name="Players", index=False)
+    if players_df is None:
+        logger.info("Wrote Excel workbook: %s (tabs: Projections, Parameters, Lineups)", path)
+    else:
+        logger.info("Wrote Excel workbook: %s (tabs: Projections, Parameters, Lineups, Players)", path)
 
 
 def write_json(obj, path: str) -> None:
