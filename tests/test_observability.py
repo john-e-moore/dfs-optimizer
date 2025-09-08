@@ -39,6 +39,7 @@ def test_snapshots(tmp_path):
         stack_positions=("WR",),
         max_game_stack=4,
         max_game_key="A-B",
+        stack_count=1,
     )
 
     snapshot_cleaned_projections(df, str(tmp_path / "cleaned.csv"))

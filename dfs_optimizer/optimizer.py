@@ -21,6 +21,7 @@ class LineupResult:
     stack_positions: Tuple[str, ...]
     max_game_stack: int
     max_game_key: str
+    stack_count: int
 
     def to_row(self) -> Dict[str, object]:
         row: Dict[str, object] = {}
@@ -28,6 +29,7 @@ class LineupResult:
         # Display sum ownership as integer percentage (e.g., 1.56 -> 156)
         row["Sum Ownership"] = int(round(self.sum_ownership * 100))
         row["Product Ownership"] = int(self.product_ownership * 1_000_000_000)
+        row["# Stacked"] = int(self.stack_count)
         row["Stack"] = ",".join(self.stack_positions)
         row["Game Stack"] = f"{self.max_game_key.replace('-', '/')} ({self.max_game_stack})"
         # Ordered player slots: QB, RB, RB, WR, WR, WR, TE, FLEX, DST
@@ -88,11 +90,14 @@ def pos_order(pos: str) -> int:
     return order.get(pos, 9)
 
 
-def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int, str]:
+def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int, str, int]:
     qb_players = [p for p in players if p.position == "QB"]
     assert len(qb_players) == 1
     qb_team = qb_players[0].team
+    # Unique positions for display
     stacked = sorted({p.position for p in players if p.team == qb_team and p.position in {"WR", "TE"}})
+    # Count of WR/TE stacked (not deduplicated)
+    stack_count = sum(1 for p in players if p.team == qb_team and p.position in {"WR", "TE"})
     # Compute max players from same game
     game_counts: Dict[str, int] = {}
     for p in players:
@@ -104,7 +109,7 @@ def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int
     else:
         max_game_key = ""
         max_game = 0
-    return tuple(stacked), max_game, max_game_key
+    return tuple(stacked), max_game, max_game_key, stack_count
 
 
 def generate_lineups(players: List[Player], params: Parameters, max_lineups: int | None = None) -> List[LineupResult]:
@@ -227,7 +232,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         for p in selected_players:
             product_ownership *= max(p.ownership, 1e-9)
 
-        stack_positions, max_game_stack, max_game_key = compute_stack_positions(selected_players)
+        stack_positions, max_game_stack, max_game_key, stack_count = compute_stack_positions(selected_players)
 
         lineup = LineupResult(
             players=tuple(selected_players),
@@ -237,6 +242,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
             stack_positions=stack_positions,
             max_game_stack=max_game_stack,
             max_game_key=max_game_key,
+            stack_count=stack_count,
         )
         lineups.append(lineup)
         previous_solutions.append(selected_idxs)
@@ -255,6 +261,7 @@ def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
         "Projection",
         "Sum Ownership",
         "Product Ownership",
+        "# Stacked",
         "Stack",
         "Game Stack",
         "QB",
