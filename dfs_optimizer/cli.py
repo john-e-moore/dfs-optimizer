@@ -4,6 +4,7 @@ import argparse
 import sys
 
 import pandas as pd
+import time
 
 from .data_loader import load_and_clean
 from .models import players_from_df, Parameters
@@ -73,7 +74,9 @@ def main(argv: list[str] | None = None) -> int:
     snapshot_players_pool(cleaned)
 
     logger.info("Generating lineups: target=%d", min(params.lineup_count, 5000))
+    t0 = time.time()
     lineups = generate_lineups(players, params)
+    elapsed = time.time() - t0
     unfiltered_df = lineups_to_dataframe(lineups)
     snapshot_lineups(lineups, path="artifacts/unfiltered_lineups.json")
     export_workbook(cleaned, params, unfiltered_df, args.out_unfiltered)
@@ -84,7 +87,14 @@ def main(argv: list[str] | None = None) -> int:
     snapshot_parameters(params)
     export_workbook(cleaned, params, filtered_df, args.out_filtered)
 
-    logger.info("Completed. Unfiltered=%d Filtered=%d Dropped=%d", len(unfiltered_df), len(filtered_df), fr.dropped)
+    # Human-friendly timing
+    if elapsed >= 120:
+        mins = int(elapsed // 60)
+        secs = int(elapsed % 60)
+        elapsed_str = f"{mins}m {secs}s"
+    else:
+        elapsed_str = f"{elapsed:.2f}s"
+    logger.info("Completed. Unfiltered=%d Filtered=%d Dropped=%d Time=%s", len(unfiltered_df), len(filtered_df), fr.dropped, elapsed_str)
     return 0
 
 

@@ -71,7 +71,7 @@ def test_end_to_end_smoke():
 
     out = lineups_to_dataframe(kept)
     # Required columns
-    for c in ["Rank", "Projection", "Sum Ownership", "Product Ownership", "# Stacked", "Game Stack", "QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]:
+    for c in ["Rank", "Projection", "Sum Ownership", "Product Ownership", "# Stacked", "QB Stack", "RB/DST Stack", "Game Stack", "QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]:
         assert c in out.columns
 
     # Sum Ownership should be integer percent (accept numpy integer types)

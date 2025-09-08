@@ -28,6 +28,8 @@ def make_lineup(sum_own: float = 1.0, prod_own: float = 1e-6, min_proj: float = 
         max_game_stack=3,
         max_game_key="A-B",
         stack_count=1,
+        all_game_stacks=(("A-B", 3),),
+        rb_dst_stack=False,
     )
 
 
@@ -53,6 +55,8 @@ def test_filter_by_min_player_projection():
         max_game_stack=3,
         max_game_key="A-B",
         stack_count=1,
+        all_game_stacks=(("A-B", 3),),
+        rb_dst_stack=False,
     )
     good = make_lineup()
     params = Parameters(min_player_projection=1.0)
