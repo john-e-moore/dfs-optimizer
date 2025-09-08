@@ -16,6 +16,7 @@ logger = setup_logger(__name__)
 class LineupResult:
     players: Tuple[Player, ...]
     total_projection: float
+    total_salary: int
     sum_ownership: float
     product_ownership: float
     stack_positions: Tuple[str, ...]
@@ -28,6 +29,7 @@ class LineupResult:
     def to_row(self) -> Dict[str, object]:
         row: Dict[str, object] = {}
         row["Projection"] = self.total_projection
+        row["Salary"] = int(self.total_salary)
         # Display sum ownership as integer percentage (e.g., 1.56 -> 156)
         row["Sum Ownership"] = int(round(self.sum_ownership * 100))
         row["Product Ownership"] = int(self.product_ownership * 1_000_000_000)
@@ -35,7 +37,7 @@ class LineupResult:
         row["QB Stack"] = ",".join(self.stack_positions)
         row["RB/DST Stack"] = bool(self.rb_dst_stack)
         # Build multi-game stack string like "CIN/CLE (4), ATL/TB (2)"
-        parts = [f"{k.replace('-', '/')} ({v})" for k, v in self.all_game_stacks]
+        parts = [f"{k.replace('-', '/')} ({v})" for k, v in self.all_game_stacks if v > 1]
         row["Game Stack"] = ", ".join(parts)
         # Ordered player slots: QB, RB, RB, WR, WR, WR, TE, FLEX, DST
         players_by_pos = sorted(self.players, key=lambda p: (pos_order(p.position), -p.projection))
@@ -247,6 +249,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         lineup = LineupResult(
             players=tuple(selected_players),
             total_projection=total_projection,
+            total_salary=total_salary,
             sum_ownership=sum_ownership,
             product_ownership=product_ownership,
             stack_positions=stack_positions,
@@ -271,6 +274,7 @@ def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
     cols = [
         "Rank",
         "Projection",
+        "Salary",
         "Sum Ownership",
         "Product Ownership",
         "# Stacked",

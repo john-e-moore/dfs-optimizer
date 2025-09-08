@@ -34,6 +34,7 @@ def test_snapshots(tmp_path):
             make_player("DST1", "DST"),
         ),
         total_projection=90.0,
+        total_salary=45000,
         sum_ownership=0.9,
         product_ownership=1e-6,
         stack_positions=("WR",),

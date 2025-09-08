@@ -22,6 +22,7 @@ def make_lineup(sum_own: float = 1.0, prod_own: float = 1e-6, min_proj: float = 
     return LineupResult(
         players=players,
         total_projection=sum(p.projection for p in players),
+        total_salary=sum(p.salary for p in players),
         sum_ownership=sum_own,
         product_ownership=prod_own,
         stack_positions=("WR",),
@@ -49,6 +50,7 @@ def test_filter_by_min_player_projection():
     bad = LineupResult(
         players=tuple(players),
         total_projection=sum(p.projection for p in players),
+        total_salary=sum(p.salary for p in players),
         sum_ownership=1.0,
         product_ownership=1e-6,
         stack_positions=("WR",),
