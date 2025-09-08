@@ -1,4 +1,5 @@
 import re
+import numpy as np
 import pandas as pd
 
 from dfs_optimizer.models import players_from_df, Parameters
@@ -73,8 +74,8 @@ def test_end_to_end_smoke():
     for c in ["Rank", "Projection", "Sum Ownership", "Game Stack", "QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]:
         assert c in out.columns
 
-    # Sum Ownership should be integer percent
-    assert isinstance(out.loc[0, "Sum Ownership"], (int,))
+    # Sum Ownership should be integer percent (accept numpy integer types)
+    assert isinstance(out.loc[0, "Sum Ownership"], (int, np.integer))
 
     # Game Stack formatting: TEAM/TEAM (N)
     assert re.match(r"^[A-Z]{1,3}/[A-Z]{1,3} \(\d+\)$", out.loc[0, "Game Stack"]) is not None

@@ -23,6 +23,8 @@ def build_parameters_df(params: Parameters) -> pd.DataFrame:
         "max_sum_ownership",
         "min_product_ownership",
         "max_product_ownership",
+        "solver_threads",
+        "solver_time_limit_s",
     ]
     row = {k: data.get(k) for k in ordered_keys}
     return pd.DataFrame([row])

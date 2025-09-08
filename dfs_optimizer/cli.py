@@ -31,6 +31,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-qb-vs-dst", action="store_true")
     p.add_argument("--stack", type=int, default=1)
     p.add_argument("--game-stack", type=int, default=0)
+    # Performance
+    p.add_argument("--solver-threads", type=int, default=None, help="Number of solver threads")
+    p.add_argument("--solver-time-limit-s", type=int, default=None, help="Solver time limit in seconds")
     # Filters
     p.add_argument("--min-player-projection", type=float, default=None)
     p.add_argument("--min-sum-ownership", type=float, default=None,
@@ -59,6 +62,8 @@ def main(argv: list[str] | None = None) -> int:
         max_sum_ownership=args.max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
         max_product_ownership=args.max_product_ownership,
+        solver_threads=args.solver_threads,
+        solver_time_limit_s=args.solver_time_limit_s,
     )
     params.validate()
 

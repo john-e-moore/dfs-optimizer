@@ -195,7 +195,14 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
             prob += pulp.lpSum(x[i] for i in sol) <= 8
 
         # Solve
-        status = prob.solve(pulp.PULP_CBC_CMD(msg=False))
+        # Configure CBC solver with optional threads/time limit
+        solver_kwargs = {"msg": False}
+        # pulp.PULP_CBC_CMD accepts threads (int) and timeLimit (float seconds)
+        if params.solver_threads is not None:
+            solver_kwargs["threads"] = params.solver_threads
+        if params.solver_time_limit_s is not None:
+            solver_kwargs["timeLimit"] = float(params.solver_time_limit_s)
+        status = prob.solve(pulp.PULP_CBC_CMD(**solver_kwargs))
         if status != pulp.LpStatusOptimal:
             logger.info("No more optimal solutions found (status=%s)", pulp.LpStatus[status])
             break

@@ -34,6 +34,9 @@ class Parameters:
     max_sum_ownership: Optional[float] = None
     min_product_ownership: Optional[float] = None
     max_product_ownership: Optional[float] = None
+    # Performance tuning
+    solver_threads: Optional[int] = None
+    solver_time_limit_s: Optional[int] = None
 
     def validate(self) -> None:
         assert self.lineup_count > 0
@@ -44,6 +47,10 @@ class Parameters:
             assert self.min_sum_ownership <= self.max_sum_ownership
         if self.min_product_ownership is not None and self.max_product_ownership is not None:
             assert self.min_product_ownership <= self.max_product_ownership
+        if self.solver_threads is not None:
+            assert self.solver_threads > 0
+        if self.solver_time_limit_s is not None:
+            assert self.solver_time_limit_s > 0
 
 
 def game_key(team: str, opponent: str) -> str:
