@@ -11,6 +11,12 @@ from .optimizer import generate_lineups, lineups_to_dataframe
 from .filters import filter_lineups
 from .reporting import export_workbook
 from .logging_utils import setup_logger
+from .observability import (
+    snapshot_cleaned_projections,
+    snapshot_players_pool,
+    snapshot_lineups,
+    snapshot_parameters,
+)
 
 logger = setup_logger(__name__)
 
@@ -57,15 +63,20 @@ def main(argv: list[str] | None = None) -> int:
     params.validate()
 
     cleaned = load_and_clean(args.projections)
+    snapshot_cleaned_projections(cleaned)
     players = players_from_df(cleaned)
+    snapshot_players_pool(cleaned)
 
     logger.info("Generating lineups: target=%d", min(params.lineup_count, 5000))
     lineups = generate_lineups(players, params)
     unfiltered_df = lineups_to_dataframe(lineups)
+    snapshot_lineups(lineups, path="artifacts/unfiltered_lineups.json")
     export_workbook(cleaned, params, unfiltered_df, args.out_unfiltered)
 
     fr = filter_lineups(lineups, params)
     filtered_df = lineups_to_dataframe(fr.lineups)
+    snapshot_lineups(fr.lineups, path="artifacts/filtered_lineups.json")
+    snapshot_parameters(params)
     export_workbook(cleaned, params, filtered_df, args.out_filtered)
 
     logger.info("Completed. Unfiltered=%d Filtered=%d Dropped=%d", len(unfiltered_df), len(filtered_df), fr.dropped)

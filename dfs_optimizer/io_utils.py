@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import pandas as pd
+import json
 
 from .logging_utils import setup_logger
 
@@ -48,3 +49,10 @@ def write_excel_with_tabs(
         params_df.to_excel(writer, sheet_name="Parameters", index=False)
         lineups_df.to_excel(writer, sheet_name="Lineups", index=False)
     logger.info("Wrote Excel workbook: %s (tabs: Projections, Parameters, Lineups)", path)
+
+
+def write_json(obj, path: str) -> None:
+    ensure_dir(path)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=2)
+    logger.info("Wrote JSON: %s", path)

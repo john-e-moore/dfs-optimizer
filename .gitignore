@@ -3,3 +3,4 @@ venv/
 *.xlsx
 *pycache*
 *.pyc
+*.json
