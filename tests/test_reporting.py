@@ -28,19 +28,30 @@ def test_build_players_exposure_df():
         'FLEX': ['F1', 'F1', 'F2'],
         'DST': ['D1', 'D1', 'D2'],
     })
-    players_df = build_players_exposure_df(lineups)
-    assert set(players_df.columns) == {"Player", "# Lineups", "% Lineups"}
-    # A (X) appears twice out of 3 (rounded percent)
-    row = players_df[players_df['Player'] == 'A (X)'].iloc[0]
+    projections = pd.DataFrame({
+        'Name': ['A', 'B'],
+        'Team': ['X', 'Y'],
+        'Position': ['QB', 'QB'],
+        'Salary': [7000, 7100],
+        'Projection': [20.0, 19.5],
+        'Ownership': [0.1, 0.1],
+        'Opponent': ['Y', 'X'],
+    })
+    players_df = build_players_exposure_df(lineups, projections)
+    assert set(players_df.columns) == {"Player", "Position", "Team", "# Lineups", "% Lineups"}
+    row = players_df[players_df['Player'] == 'A'].iloc[0]
     assert row['# Lineups'] == 2
     assert row['% Lineups'] in (67, 66)
+    assert row['Position'] == 'QB'
+    assert row['Team'] == 'X'
 
 
 def test_write_excel_tabs_includes_players(tmp_path):
     projections = pd.DataFrame({"Name": ["A"], "Team": ["X"]})
     params_df = pd.DataFrame({"param": [1]})
     lineups = pd.DataFrame({"Rank": [1], "Projection": [10.5], "QB": ["A (X)"], "RB1": ["R1"], "RB2": ["R2"], "WR1": ["W1"], "WR2": ["W2"], "WR3": ["W3"], "TE": ["T1"], "FLEX": ["F1"], "DST": ["D1"]})
-    players_df = build_players_exposure_df(lineups)
+    projections = pd.DataFrame({'Name': ['A'], 'Team': ['X'], 'Position': ['QB']})
+    players_df = build_players_exposure_df(lineups, projections)
     path = tmp_path / "out.xlsx"
     write_excel_with_tabs(projections, params_df, lineups, str(path), players_df=players_df)
     assert path.exists()
