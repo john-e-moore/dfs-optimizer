@@ -63,17 +63,19 @@ class LineupResult:
         flex = next(p for p in flex_candidates if id(p) not in used_ids)
         slots[7] = flex
         slots[8] = dst[0]
-        # Fill columns with Name (TEAM)
+        # Fill columns with Name (OWNERSHIP%) where ownership is shown as a percentage with one decimal
+        def fmt(p: Player) -> str:
+            return f"{p.name} ({p.ownership * 100:.1f})"
         name_cols = [
-            slots[0].display_name(),
-            slots[1].display_name(),
-            slots[2].display_name(),
-            slots[3].display_name(),
-            slots[4].display_name(),
-            slots[5].display_name(),
-            slots[6].display_name(),
-            slots[7].display_name(),
-            slots[8].display_name(),
+            fmt(slots[0]),
+            fmt(slots[1]),
+            fmt(slots[2]),
+            fmt(slots[3]),
+            fmt(slots[4]),
+            fmt(slots[5]),
+            fmt(slots[6]),
+            fmt(slots[7]),
+            fmt(slots[8]),
         ]
         # Attach player names in order after metadata columns
         row.update(

@@ -4,7 +4,7 @@ set -euo pipefail
 # Defaults (match CLI defaults)
 PROJECTIONS="data/DraftKings NFL DFS Projections -- Main Slate.csv"
 LINEUPS=200
-MIN_SALARY=49500
+MIN_SALARY=49800
 STACK=1
 GAME_STACK=0
 OUT_UNFILTERED="output/unfiltered_lineups.xlsx"
