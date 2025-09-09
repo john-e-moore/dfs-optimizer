@@ -37,6 +37,7 @@ def test_snapshots(tmp_path):
         total_salary=45000,
         sum_ownership=0.9,
         product_ownership=1e-6,
+        weighted_ownership=0.9 * (5000/50000),
         stack_positions=("WR",),
         max_game_stack=4,
         max_game_key="A-B",

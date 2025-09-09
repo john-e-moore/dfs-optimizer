@@ -19,6 +19,7 @@ class LineupResult:
     total_salary: int
     sum_ownership: float
     product_ownership: float
+    weighted_ownership: float
     stack_positions: Tuple[str, ...]
     max_game_stack: int
     max_game_key: str
@@ -33,6 +34,8 @@ class LineupResult:
         # Display sum ownership as integer percentage (e.g., 1.56 -> 156)
         row["Sum Ownership"] = int(round(self.sum_ownership * 100))
         row["Product Ownership"] = int(self.product_ownership * 1_000_000_000)
+        # Display weighted ownership as integer percent: sum((salary/50000)*ownership) * 100
+        row["Weighted Ownership"] = int(round(self.weighted_ownership * 100))
         row["# Stacked"] = int(self.stack_count)
         row["QB Stack"] = ",".join(self.stack_positions)
         row["RB/DST Stack"] = bool(self.rb_dst_stack)
@@ -245,6 +248,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         product_ownership = 1.0
         for p in selected_players:
             product_ownership *= max(p.ownership, 1e-9)
+        weighted_ownership = sum((p.salary / 50000.0) * p.ownership for p in selected_players)
 
         stack_positions, max_game_stack, max_game_key, stack_count, all_game_stacks, rb_dst_stack = compute_stack_positions(selected_players)
 
@@ -254,6 +258,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
             total_salary=total_salary,
             sum_ownership=sum_ownership,
             product_ownership=product_ownership,
+            weighted_ownership=weighted_ownership,
             stack_positions=stack_positions,
             max_game_stack=max_game_stack,
             max_game_key=max_game_key,
@@ -279,6 +284,7 @@ def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
         "Salary",
         "Sum Ownership",
         "Product Ownership",
+        "Weighted Ownership",
         "# Stacked",
         "QB Stack",
         "RB/DST Stack",
