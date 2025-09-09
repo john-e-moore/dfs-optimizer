@@ -68,7 +68,7 @@ class LineupResult:
         slots[8] = dst[0]
         # Fill columns with Name (OWNERSHIP%) where ownership is shown as a percentage with one decimal
         def fmt(p: Player) -> str:
-            return f"{p.name} ({p.ownership * 100:.1f})"
+            return f"{p.name} ({p.ownership * 100:.1f}%)"
         name_cols = [
             fmt(slots[0]),
             fmt(slots[1]),

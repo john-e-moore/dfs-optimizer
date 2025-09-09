@@ -43,42 +43,37 @@ def build_players_exposure_df(lineups_df: pd.DataFrame, projections_df: pd.DataF
     if not present_cols:
         return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": []})
 
-    # Parse names like "Player Name (TEAM)" into (name, team)
-    def parse_name_team(value: str) -> tuple[str, str]:
+    # Extract player names by stripping any trailing parenthetical (team or ownership)
+    def extract_name(value: str) -> str:
         s = str(value)
         if s.endswith(")") and "(" in s:
             try:
-                name_part, team_part = s.rsplit(" (", 1)
-                team = team_part[:-1]
-                return name_part, team
+                name_part = s.rsplit(" (", 1)[0]
+                return name_part
             except Exception:
-                return s, ""
-        return s, ""
+                return s
+        return s
 
-    # Build counts keyed by (name, team)
-    keys_series = pd.Series(dtype=object)
+    # Build counts keyed by player name only
+    name_series = pd.Series(dtype=object)
     for c in present_cols:
-        col = lineups_df[c].dropna().astype(str).apply(parse_name_team)
-        keys_series = pd.concat([keys_series, col], ignore_index=True)
-    counts = keys_series.value_counts()
+        col = lineups_df[c].dropna().astype(str).apply(extract_name)
+        name_series = pd.concat([name_series, col], ignore_index=True)
+    counts = name_series.value_counts()
     total_lineups = max(1, len(lineups_df))
 
-    # Map (name, team) to position using projections_df
+    # Map name to (position, team) using projections_df
     proj = projections_df.copy()
     proj["Team"] = proj["Team"].astype(str).str.upper().str.strip()
     proj["Name"] = proj["Name"].astype(str)
-    lookup = proj.set_index(["Name", "Team"])["Position"]
+    # If duplicate names exist, we take the first occurrence
+    name_to_pos = proj.groupby("Name")["Position"].first()
+    name_to_team = proj.groupby("Name")["Team"].first()
 
     records = []
-    for (name, team), cnt in counts.items():
-        pos = None
-        try:
-            pos = lookup.loc[(name, team)]
-            # If multiple rows, take first
-            if isinstance(pos, pd.Series):
-                pos = pos.iloc[0]
-        except KeyError:
-            pos = ""
+    for name, cnt in counts.items():
+        pos = name_to_pos.get(name, "")
+        team = name_to_team.get(name, "")
         pct = int(round(cnt / total_lineups * 100))
         records.append({
             "Player": name,
