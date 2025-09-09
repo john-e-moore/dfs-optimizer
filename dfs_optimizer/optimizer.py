@@ -175,62 +175,60 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     solver_cmd = pulp.PULP_CBC_CMD(**solver_kwargs)
     logger.info("Solver settings: CBC threads=%d timeLimit=%s", int(effective_threads), str(effective_time_limit))
 
-    while len(lineups) < target_lineups:
-        prob = pulp.LpProblem("DFS_Optimizer", pulp.LpMaximize)
-        x = pulp.LpVariable.dicts("x", index, lowBound=0, upBound=1, cat="Binary")
+    # Build the MILP once
+    prob = pulp.LpProblem("DFS_Optimizer", pulp.LpMaximize)
+    x = pulp.LpVariable.dicts("x", index, lowBound=0, upBound=1, cat="Binary")
 
-        # Objective: maximize projection
-        prob += pulp.lpSum(players[i].projection * x[i] for i in index)
+    # Objective: maximize projection
+    prob += pulp.lpSum(players[i].projection * x[i] for i in index)
 
-        # Roster size and position counts
-        prob += pulp.lpSum(x[i] for i in index) == 9
-        prob += pulp.lpSum(x[i] for i in pos_idxs["QB"]) == 1
-        prob += pulp.lpSum(x[i] for i in pos_idxs["DST"]) == 1
-        prob += pulp.lpSum(x[i] for i in pos_idxs["RB"]) >= 2
-        prob += pulp.lpSum(x[i] for i in pos_idxs["WR"]) >= 3
-        prob += pulp.lpSum(x[i] for i in pos_idxs["TE"]) >= 1
+    # Roster size and position counts
+    prob += pulp.lpSum(x[i] for i in index) == 9
+    prob += pulp.lpSum(x[i] for i in pos_idxs["QB"]) == 1
+    prob += pulp.lpSum(x[i] for i in pos_idxs["DST"]) == 1
+    prob += pulp.lpSum(x[i] for i in pos_idxs["RB"]) >= 2
+    prob += pulp.lpSum(x[i] for i in pos_idxs["WR"]) >= 3
+    prob += pulp.lpSum(x[i] for i in pos_idxs["TE"]) >= 1
 
-        # Salary bounds
-        prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
-        prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
+    # Salary bounds
+    prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
+    prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
 
-        # Stack with QB: sum WR/TE from QB team >= stack
-        if params.stack and params.stack > 0:
-            for team, qb_idxs in team_to_qb_idxs.items():
+    # Stack with QB: sum WR/TE from QB team >= stack
+    if params.stack and params.stack > 0:
+        for team, qb_idxs in team_to_qb_idxs.items():
+            prob += (
+                pulp.lpSum(x[i] for i in team_to_wrte_idxs.get(team, []))
+                >= params.stack * pulp.lpSum(x[i] for i in qb_idxs)
+            )
+
+    # Game stack: at least one game with >= game_stack players
+    z = None
+    if params.game_stack and params.game_stack > 0:
+        z = pulp.LpVariable.dicts(
+            "z_game",
+            list(game_to_idxs.keys()),
+            lowBound=0,
+            upBound=1,
+            cat="Binary",
+        )
+        for g, idxs in game_to_idxs.items():
+            prob += pulp.lpSum(x[i] for i in idxs) >= params.game_stack * z[g]
+        prob += pulp.lpSum(z[g] for g in game_to_idxs.keys()) >= 1
+
+    # Disallow QB vs opposing DST if configured
+    if not params.allow_qb_vs_dst:
+        for team, qb_idxs in team_to_qb_idxs.items():
+            opp_dst_idxs = dst_opp_to_idxs.get(team, [])
+            if opp_dst_idxs:
                 prob += (
-                    pulp.lpSum(x[i] for i in team_to_wrte_idxs.get(team, []))
-                    >= params.stack * pulp.lpSum(x[i] for i in qb_idxs)
+                    pulp.lpSum(x[i] for i in qb_idxs)
+                    + pulp.lpSum(x[i] for i in opp_dst_idxs)
+                    <= 1
                 )
 
-        # Game stack: at least one game with >= game_stack players
-        if params.game_stack and params.game_stack > 0:
-            z = pulp.LpVariable.dicts(
-                "z_game",
-                list(game_to_idxs.keys()),
-                lowBound=0,
-                upBound=1,
-                cat="Binary",
-            )
-            for g, idxs in game_to_idxs.items():
-                prob += pulp.lpSum(x[i] for i in idxs) >= params.game_stack * z[g]
-            prob += pulp.lpSum(z[g] for g in game_to_idxs.keys()) >= 1
-
-        # Disallow QB vs opposing DST if configured
-        if not params.allow_qb_vs_dst:
-            for team, qb_idxs in team_to_qb_idxs.items():
-                opp_dst_idxs = dst_opp_to_idxs.get(team, [])
-                if opp_dst_idxs:
-                    prob += (
-                        pulp.lpSum(x[i] for i in qb_idxs)
-                        + pulp.lpSum(x[i] for i in opp_dst_idxs)
-                        <= 1
-                    )
-
-        # Uniqueness constraints against previous solutions
-        for sol in previous_solutions:
-            prob += pulp.lpSum(x[i] for i in sol) <= 8
-
-        # Solve using configured CBC solver
+    # Iteratively solve and add uniqueness constraints
+    while len(lineups) < target_lineups:
         status = prob.solve(solver_cmd)
         if status != pulp.LpStatusOptimal:
             logger.info("No more optimal solutions found (status=%s)", pulp.LpStatus[status])
@@ -275,6 +273,9 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         )
         lineups.append(lineup)
         previous_solutions.append(selected_idxs)
+
+        # Add uniqueness constraint to avoid reproducing the same lineup
+        prob += pulp.lpSum(x[i] for i in selected_idxs) <= 8
 
     return lineups
 

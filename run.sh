@@ -17,7 +17,7 @@ set -euo pipefail
 : "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
-: "${SOLVER_THREADS:=}"
+: "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
 # Activate venv if present

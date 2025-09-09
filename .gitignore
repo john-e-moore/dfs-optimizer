@@ -1,6 +1,6 @@
 venv/
 *.csv
 *.xlsx
-*pycache*
+*__pycache__/
 *.pyc
 *.json
