@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from typing import Dict, List, Tuple
 
 import pandas as pd
@@ -165,6 +166,15 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     lineups: List[LineupResult] = []
     previous_solutions: List[List[int]] = []
 
+    # Configure CBC solver (threads/time limit) once per run
+    effective_threads = params.solver_threads if params.solver_threads is not None else (os.cpu_count() or 1)
+    effective_time_limit = float(params.solver_time_limit_s) if params.solver_time_limit_s is not None else None
+    solver_kwargs: Dict[str, object] = {"msg": False, "threads": int(effective_threads)}
+    if effective_time_limit is not None:
+        solver_kwargs["timeLimit"] = effective_time_limit
+    solver_cmd = pulp.PULP_CBC_CMD(**solver_kwargs)
+    logger.info("Solver settings: CBC threads=%d timeLimit=%s", int(effective_threads), str(effective_time_limit))
+
     while len(lineups) < target_lineups:
         prob = pulp.LpProblem("DFS_Optimizer", pulp.LpMaximize)
         x = pulp.LpVariable.dicts("x", index, lowBound=0, upBound=1, cat="Binary")
@@ -220,15 +230,8 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         for sol in previous_solutions:
             prob += pulp.lpSum(x[i] for i in sol) <= 8
 
-        # Solve
-        # Configure CBC solver with optional threads/time limit
-        solver_kwargs = {"msg": False}
-        # pulp.PULP_CBC_CMD accepts threads (int) and timeLimit (float seconds)
-        if params.solver_threads is not None:
-            solver_kwargs["threads"] = params.solver_threads
-        if params.solver_time_limit_s is not None:
-            solver_kwargs["timeLimit"] = float(params.solver_time_limit_s)
-        status = prob.solve(pulp.PULP_CBC_CMD(**solver_kwargs))
+        # Solve using configured CBC solver
+        status = prob.solve(solver_cmd)
         if status != pulp.LpStatusOptimal:
             logger.info("No more optimal solutions found (status=%s)", pulp.LpStatus[status])
             break

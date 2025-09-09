@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Defaults (match CLI defaults)
-PROJECTIONS="data/DraftKings NFL DFS Projections -- Main Slate.csv"
-LINEUPS=100
-MIN_SALARY=49800
-STACK=1
-GAME_STACK=6
-OUT_UNFILTERED="output/unfiltered_lineups.xlsx"
-OUT_FILTERED="output/filtered_lineups.xlsx"
+# Defaults (match CLI defaults); allow environment overrides if already set
+: "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
+: "${LINEUPS:=100}"
+: "${MIN_SALARY:=49800}"
+: "${STACK:=1}"
+: "${GAME_STACK:=0}"
+: "${OUT_UNFILTERED:=output/unfiltered_lineups.xlsx}"
+: "${OUT_FILTERED:=output/filtered_lineups.xlsx}"
 
-# Optional flags (left empty to use defaults)
-ALLOW_QB_VS_DST=""            # set to any non-empty value to enable flag
-MIN_PLAYER_PROJECTION=""      # e.g., 1.0
-MIN_SUM_OWNERSHIP=""          # fraction in [0,1], e.g., 0.9
-MAX_SUM_OWNERSHIP=""          # fraction in [0,1], e.g., 1.4
-MIN_PRODUCT_OWNERSHIP=""      # e.g., 1e-9
-MAX_PRODUCT_OWNERSHIP=""      # e.g., 0.1
-SOLVER_THREADS=""             # e.g., 2
-SOLVER_TIME_LIMIT_S=""        # e.g., 30 (seconds)
+# Optional flags (left empty to use defaults); environment can override
+: "${ALLOW_QB_VS_DST:=}"
+: "${MIN_PLAYER_PROJECTION:=}"
+: "${MIN_SUM_OWNERSHIP:=}"
+: "${MAX_SUM_OWNERSHIP:=}"
+: "${MIN_PRODUCT_OWNERSHIP:=}"
+: "${MAX_PRODUCT_OWNERSHIP:=}"
+: "${SOLVER_THREADS:=}"
+: "${SOLVER_TIME_LIMIT_S:=}"
 
 # Activate venv if present
 if [[ -f "venv/bin/activate" ]]; then
