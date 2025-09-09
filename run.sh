@@ -6,7 +6,7 @@ PROJECTIONS="data/DraftKings NFL DFS Projections -- Main Slate.csv"
 LINEUPS=100
 MIN_SALARY=49800
 STACK=1
-GAME_STACK=0
+GAME_STACK=6
 OUT_UNFILTERED="output/unfiltered_lineups.xlsx"
 OUT_FILTERED="output/filtered_lineups.xlsx"
 

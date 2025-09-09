@@ -110,9 +110,11 @@ def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int
     stacked = sorted({p.position for p in players if p.team == qb_team and p.position in {"WR", "TE"}})
     # Count of WR/TE stacked (not deduplicated)
     stack_count = sum(1 for p in players if p.team == qb_team and p.position in {"WR", "TE"})
-    # Compute max players from same game
+    # Compute max players from same game (exclude DST)
     game_counts: Dict[str, int] = {}
     for p in players:
+        if p.position == "DST":
+            continue
         g = game_key(p.team, p.opponent)
         game_counts[g] = game_counts.get(g, 0) + 1
     if game_counts:
@@ -156,7 +158,9 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
             team_to_wrte_idxs.setdefault(p.team, []).append(i)
         if p.position == "DST":
             dst_opp_to_idxs.setdefault(p.opponent, []).append(i)
-        game_to_idxs.setdefault(game_key(p.team, p.opponent), []).append(i)
+        # Exclude DST from game stack constraints
+        if p.position != "DST":
+            game_to_idxs.setdefault(game_key(p.team, p.opponent), []).append(i)
 
     lineups: List[LineupResult] = []
     previous_solutions: List[List[int]] = []
