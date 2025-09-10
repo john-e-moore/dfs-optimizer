@@ -45,7 +45,7 @@
 Acceptance for M1: Running CLI with `--game-stack-target BUF/NYJ --game-stack 3` yields lineups with ≥3 players from BUF/NYJ only; behavior unchanged when target not set.
 
 ### M2: Aggregation helper (shared)
-1) Create `agent/tools/aggregate_lineups.py` (or similar):
+1) Create `tools/aggregate_lineups.py` (top-level):
    - Inputs: list of Excel paths, output path, sheet name `Lineups`, extra column name/value pair (e.g., `QB`, `Game`).
    - Behavior:
      - Read each `Lineups` sheet via pandas.
