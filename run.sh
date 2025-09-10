@@ -3,10 +3,10 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
-: "${LINEUPS:=10}"
-: "${MIN_SALARY:=49800}"
-: "${STACK:=2}"
-: "${GAME_STACK:=0}"
+: "${LINEUPS:=20}"
+: "${MIN_SALARY:=49600}"
+: "${STACK:=1}"
+: "${GAME_STACK:=5}"
 : "${GAME_STACK_TARGET:=}"
 : "${OUT_UNFILTERED:=output/unfiltered_lineups.xlsx}"
 : "${OUT_FILTERED:=output/filtered_lineups.xlsx}"
