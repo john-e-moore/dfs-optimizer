@@ -36,6 +36,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-qb-vs-dst", action="store_true")
     p.add_argument("--stack", type=int, default=1)
     p.add_argument("--game-stack", type=int, default=0)
+    p.add_argument("--game-stack-target", type=str, default=None,
+                   help="Targeted game key (e.g., BUF/NYJ, NYJ@BUF, BUF-NYJ); order-insensitive")
     # Performance
     p.add_argument("--solver-threads", type=int, default=None, help="Number of solver threads")
     p.add_argument("--solver-time-limit-s", type=int, default=None, help="Solver time limit in seconds")
@@ -135,12 +137,26 @@ def main(argv: list[str] | None = None) -> int:
     excluded_teams: Set[str] = {s.upper() for s in _parse_multi(args.exclude_teams)} if args.exclude_teams is not None else set()
     min_players_by_team: Dict[str, int] = _parse_min_team(args.min_team)
 
+    # Normalize game stack target to sorted AAA/BBB using '-' as canonical separator
+    game_stack_target: str | None = None
+    if args.game_stack_target:
+        raw = str(args.game_stack_target).strip().upper()
+        # Accept separators '/', '@', '-'
+        for sep in ["/", "@", "-"]:
+            raw = raw.replace(sep, "/")
+        parts = [p for p in raw.split("/") if p]
+        if len(parts) != 2:
+            raise SystemExit(f"Invalid --game-stack-target '{args.game_stack_target}'. Expected TEAM1/TEAM2")
+        a, b = sorted(parts)
+        game_stack_target = f"{a}-{b}"
+
     params = Parameters(
         lineup_count=args.lineups,
         min_salary=args.min_salary,
         allow_qb_vs_dst=args.allow_qb_vs_dst,
         stack=args.stack,
         game_stack=args.game_stack,
+        game_stack_target=game_stack_target,
         min_sum_projection=min_sum_projection,
         min_player_projection=args.min_player_projection,
         min_sum_ownership=args.min_sum_ownership,

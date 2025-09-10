@@ -229,19 +229,28 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
                 >= params.stack * pulp.lpSum(x[i] for i in qb_idxs)
             )
 
-    # Game stack: at least one game with >= game_stack players
-    z = None
+    # Game stack: either targeted game or any game
     if params.game_stack and params.game_stack > 0:
-        z = pulp.LpVariable.dicts(
-            "z_game",
-            list(game_to_idxs.keys()),
-            lowBound=0,
-            upBound=1,
-            cat="Binary",
-        )
-        for g, idxs in game_to_idxs.items():
-            prob += pulp.lpSum(x[i] for i in idxs) >= params.game_stack * z[g]
-        prob += pulp.lpSum(z[g] for g in game_to_idxs.keys()) >= 1
+        if params.game_stack_target:
+            target = params.game_stack_target
+            if target not in game_to_idxs:
+                # If target game key not present (e.g., DST-only or filtered out), force infeasibility of selecting that game
+                # by requiring sum over empty set >= positive value; alternatively, short-circuit by returning empty results later.
+                # Here, we guard by creating an empty constraint that will be unsatisfiable.
+                prob += pulp.lpSum([]) >= params.game_stack  # effectively 0 >= k -> infeasible
+            else:
+                prob += pulp.lpSum(x[i] for i in game_to_idxs[target]) >= params.game_stack
+        else:
+            z = pulp.LpVariable.dicts(
+                "z_game",
+                list(game_to_idxs.keys()),
+                lowBound=0,
+                upBound=1,
+                cat="Binary",
+            )
+            for g, idxs in game_to_idxs.items():
+                prob += pulp.lpSum(x[i] for i in idxs) >= params.game_stack * z[g]
+            prob += pulp.lpSum(z[g] for g in game_to_idxs.keys()) >= 1
 
     # Disallow QB vs opposing DST if configured
     if not params.allow_qb_vs_dst:

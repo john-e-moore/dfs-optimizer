@@ -3,10 +3,11 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
-: "${LINEUPS:=50}"
+: "${LINEUPS:=10}"
 : "${MIN_SALARY:=49800}"
 : "${STACK:=2}"
 : "${GAME_STACK:=0}"
+: "${GAME_STACK_TARGET:=}"
 : "${OUT_UNFILTERED:=output/unfiltered_lineups.xlsx}"
 : "${OUT_FILTERED:=output/filtered_lineups.xlsx}"
 
@@ -18,10 +19,10 @@ set -euo pipefail
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
-: "${INCLUDE_PLAYERS:="Geno Smith"}"
+: "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
-: "${RB_DST_STACK:=True}"
+: "${RB_DST_STACK:=False}"
 : "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
@@ -37,6 +38,7 @@ ARGS=(
 	--min-salary "$MIN_SALARY"
 	--stack "$STACK"
 	--game-stack "$GAME_STACK"
+	${GAME_STACK_TARGET:+--game-stack-target "$GAME_STACK_TARGET"}
 	--out-unfiltered "$OUT_UNFILTERED"
 	--out-filtered "$OUT_FILTERED"
 )
