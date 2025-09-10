@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 
-from dfs_optimizer.models import Parameters
-from dfs_optimizer.reporting import build_parameters_df, build_players_exposure_df
-from dfs_optimizer.io_utils import write_excel_with_tabs
+from src.models import Parameters
+from src.reporting import build_parameters_df, build_players_exposure_df
+from src.io_utils import write_excel_with_tabs
 
 
 def test_build_parameters_df_keys_and_values():
@@ -11,8 +11,10 @@ def test_build_parameters_df_keys_and_values():
                         min_player_projection=5.0, min_sum_ownership=0.9, max_sum_ownership=1.3,
                         min_product_ownership=1e-9, max_product_ownership=0.1)
     df = build_parameters_df(params)
-    assert df.loc[0, 'lineup_count'] == 10
-    assert 'max_product_ownership' in df.columns
+    # New layout: one parameter per row
+    assert set(df.columns) == {"Parameter", "Value"}
+    assert int(df[df["Parameter"] == "lineup_count"]["Value"].iloc[0]) == 10
+    assert (df["Parameter"] == "max_product_ownership").any()
 
 
 def test_build_players_exposure_df():

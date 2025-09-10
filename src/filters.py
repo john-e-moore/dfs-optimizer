@@ -62,3 +62,5 @@ def filter_lineups(lineups: List[LineupResult], params: Parameters) -> FilterRes
             continue
         kept.append(lu)
     return FilterResult(lineups=kept, dropped=len(lineups) - len(kept))
+
+

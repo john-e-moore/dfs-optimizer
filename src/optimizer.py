@@ -363,3 +363,5 @@ def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
         if c not in df.columns:
             df[c] = None
     return df[cols]
+
+

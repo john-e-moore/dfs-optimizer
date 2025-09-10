@@ -95,3 +95,5 @@ def players_from_df(df: pd.DataFrame) -> List[Player]:
             )
         )
     return players
+
+

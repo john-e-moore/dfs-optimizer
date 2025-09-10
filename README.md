@@ -41,7 +41,7 @@ Two Excel workbooks are produced by default:
 
 Each workbook contains:
 - Projections: a copy of the input projections (cleaned/normalized)
-- Parameters: a one-row table showing all parameters and filter values used
+- Parameters: two-column table (one parameter per row): Column A = Parameter, Column B = Value
 - Lineups: ranked in descending order of projection with these columns:
   - Rank
   - Projection
@@ -93,7 +93,7 @@ Quick start with the included script (defaults set in the script):
 
 Or call the CLI directly with flags:
 ```bash
-python -m dfs_optimizer.cli \
+python -m src.cli \
   --projections "data/DraftKings NFL DFS Projections -- Main Slate.csv" \
   --lineups 5000 \
   --min-salary 45000 \
@@ -130,8 +130,8 @@ Additional pruning/constraints flags:
 - Extremely tight/contradictory constraints (e.g., high min salary + strong stacks + restrictive filters) may yield few or no lineups
 - The solver returns globally optimal lineups for the provided constraints; generating thousands of unique lineups can be time-consuming. Use `--solver-time-limit-s` and `--solver-threads` if needed
 
-### Project structure
-- `dfs_optimizer/`
+-### Project structure
+- `src/`
   - `data_loader.py`: load, validate, and normalize projections
   - `models.py`: domain dataclasses and helpers
   - `optimizer.py`: MILP model and lineup generation

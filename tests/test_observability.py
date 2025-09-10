@@ -2,14 +2,14 @@ import os
 import json
 import pandas as pd
 
-from dfs_optimizer.models import Player, Parameters
-from dfs_optimizer.observability import (
+from src.models import Player, Parameters
+from src.observability import (
     snapshot_cleaned_projections,
     snapshot_players_pool,
     snapshot_lineups,
     snapshot_parameters,
 )
-from dfs_optimizer.optimizer import LineupResult
+from src.optimizer import LineupResult
 
 
 def make_player(name: str, pos: str, team: str = "A", opp: str = "B"):

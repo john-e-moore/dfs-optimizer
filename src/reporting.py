@@ -31,14 +31,24 @@ def build_parameters_df(params: Parameters) -> pd.DataFrame:
         "solver_threads",
         "solver_time_limit_s",
     ]
-    row = {k: data.get(k) for k in ordered_keys}
-    return pd.DataFrame([row])
+    # New layout: one parameter per row
+    rows = []
+    for k in ordered_keys:
+        v = data.get(k)
+        # Convert collections to readable strings
+        if isinstance(v, set):
+            v = ", ".join(sorted(v))
+        elif isinstance(v, dict):
+            v = ", ".join(f"{kk}:{vv}" for kk, vv in sorted(v.items()))
+        rows.append({"Parameter": k, "Value": v})
+    return pd.DataFrame(rows, columns=["Parameter", "Value"])
 
 
 def export_workbook(projections_df: pd.DataFrame, params: Parameters, lineups_df: pd.DataFrame, path: str) -> None:
     params_df = build_parameters_df(params)
     players_df = build_players_exposure_df(lineups_df, projections_df)
     write_excel_with_tabs(projections_df, params_df, lineups_df, path, players_df=players_df)
+
 
 def build_players_exposure_df(lineups_df: pd.DataFrame, projections_df: pd.DataFrame) -> pd.DataFrame:
     if lineups_df is None or lineups_df.empty:
@@ -91,3 +101,5 @@ def build_players_exposure_df(lineups_df: pd.DataFrame, projections_df: pd.DataF
     out = pd.DataFrame.from_records(records)
     out = out.sort_values(by=["# Lineups", "Player"], ascending=[False, True]).reset_index(drop=True)
     return out
+
+

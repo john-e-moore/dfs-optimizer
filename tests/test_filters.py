@@ -1,6 +1,6 @@
-from dfs_optimizer.models import Player, Parameters
-from dfs_optimizer.optimizer import LineupResult
-from dfs_optimizer.filters import filter_lineups
+from src.models import Player, Parameters
+from src.optimizer import LineupResult
+from src.filters import filter_lineups
 
 
 def make_player(name: str, pos: str, team: str = "A", opp: str = "B", salary: int = 5000, proj: float = 10.0, own: float = 0.1):

@@ -3,10 +3,10 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
-: "${LINEUPS:=20}"
+: "${LINEUPS:=50}"
 : "${MIN_SALARY:=49800}"
 : "${STACK:=2}"
-: "${GAME_STACK:=5}"
+: "${GAME_STACK:=0}"
 : "${OUT_UNFILTERED:=output/unfiltered_lineups.xlsx}"
 : "${OUT_FILTERED:=output/filtered_lineups.xlsx}"
 
@@ -17,8 +17,8 @@ set -euo pipefail
 : "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
-: "${EXCLUDE_PLAYERS:=}"
-: "${INCLUDE_PLAYERS:=}"
+: "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
+: "${INCLUDE_PLAYERS:="Geno Smith"}"
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
 : "${RB_DST_STACK:=True}"
@@ -56,4 +56,4 @@ ARGS=(
 [[ -n "$MIN_TEAM" ]] && ARGS+=(--min-team "$MIN_TEAM")
 [[ -n "$RB_DST_STACK" ]] && ARGS+=(--rb-dst-stack)
 
-python -m dfs_optimizer.cli "${ARGS[@]}"
+python -m src.cli "${ARGS[@]}"
