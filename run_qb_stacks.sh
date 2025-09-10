@@ -21,6 +21,10 @@ fi
 BASE_OUT_DIR="output/${TS}"
 mkdir -p "$BASE_OUT_DIR"
 
+# Log all script output into timestamped folder
+STACKS_LOG="${BASE_OUT_DIR}/run_qb_stacks.log"
+exec > >(tee -a "$STACKS_LOG") 2>&1
+
 # If using default aggregate output paths, place them under the timestamped directory
 if [[ "$QB_STACKS_OUT_UNFILTERED" == "output/qb_stacks_unfiltered.xlsx" ]]; then
     QB_STACKS_OUT_UNFILTERED="${BASE_OUT_DIR}/qb_stacks_unfiltered.xlsx"
@@ -107,7 +111,7 @@ main() {
     # Aggregate
     if (( ${#SRC_UNF[@]} > 0 )); then
         log "Aggregating unfiltered lineups -> $QB_STACKS_OUT_UNFILTERED"
-        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_UNFILTERED" --column-name QB)
+        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_UNFILTERED" --column-name QB --no-extra-column)
         for s in "${SRC_UNF[@]}"; do
             cmd+=(--src "$s")
         done
@@ -117,7 +121,7 @@ main() {
     fi
     if (( ${#SRC_FIL[@]} > 0 )); then
         log "Aggregating filtered lineups -> $QB_STACKS_OUT_FILTERED"
-        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_FILTERED" --column-name QB)
+        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_FILTERED" --column-name QB --no-extra-column)
         for s in "${SRC_FIL[@]}"; do
             cmd+=(--src "$s")
         done

@@ -27,6 +27,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--sheet", default="Lineups", help="Sheet name to aggregate (default: Lineups)")
     p.add_argument("--engine", default="xlsxwriter", help="ExcelWriter engine (xlsxwriter or openpyxl)")
+    p.add_argument("--no-extra-column", action="store_true", help="Do not add an extra column; just concatenate and re-rank")
     return p.parse_args(argv)
 
 
@@ -74,7 +75,7 @@ def _insert_after(df: pd.DataFrame, new_col: str, series: pd.Series, after_col: 
     return df[left + [new_col] + right]
 
 
-def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name: str, engine: str = "xlsxwriter") -> Tuple[int, pd.DataFrame]:
+def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name: str, engine: str = "xlsxwriter", add_extra_column: bool = True) -> Tuple[int, pd.DataFrame]:
     parts: List[pd.DataFrame] = []
     for s in sources:
         df = _read_lineups(s.path, sheet_name)
@@ -84,9 +85,10 @@ def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name
             df = df.drop(columns=["Rank"])  # type: ignore
         df["Projection"] = pd.to_numeric(df["Projection"], errors="coerce")
         df = df.dropna(subset=["Projection"])  # type: ignore
-        df[column_name] = s.value
-        if "Game Stack" in df.columns:
-            df = _insert_after(df, column_name, df[column_name], "Game Stack")
+        if add_extra_column:
+            df[column_name] = s.value
+            if "Game Stack" in df.columns:
+                df = _insert_after(df, column_name, df[column_name], "Game Stack")
         parts.append(df)
 
     if not parts:
@@ -123,7 +125,7 @@ def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name
 def main(argv: List[str] | None = None) -> int:
     args = parse_args(argv)
     sources = _parse_sources(args.src)
-    total, _ = aggregate(args.out, args.column_name, sources, args.sheet, args.engine)
+    total, _ = aggregate(args.out, args.column_name, sources, args.sheet, args.engine, add_extra_column=(not args.no_extra_column))
     print(f"Aggregated {total} lineups into {args.out}")
     return 0
 

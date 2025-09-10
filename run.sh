@@ -32,6 +32,19 @@ if [[ -f "venv/bin/activate" ]]; then
 	source "venv/bin/activate"
 fi
 
+## Determine run directory and log path
+# If using defaults, mirror CLI behavior by placing outputs under a timestamped subfolder
+RUN_TS="$(date '+%Y%m%d_%H%M%S')"
+if [[ "$OUT_UNFILTERED" == "output/unfiltered_lineups.xlsx" ]]; then
+    OUT_UNFILTERED="output/${RUN_TS}/unfiltered_lineups.xlsx"
+fi
+if [[ "$OUT_FILTERED" == "output/filtered_lineups.xlsx" ]]; then
+    OUT_FILTERED="output/${RUN_TS}/filtered_lineups.xlsx"
+fi
+RUN_DIR="$(dirname "$OUT_UNFILTERED")"
+mkdir -p "$RUN_DIR"
+RUN_LOG="$RUN_DIR/run.log"
+
 ARGS=(
 	--projections "$PROJECTIONS"
 	--lineups "$LINEUPS"
@@ -57,5 +70,8 @@ ARGS=(
 [[ -n "$EXCLUDE_TEAMS" ]] && ARGS+=(--exclude-teams "$EXCLUDE_TEAMS")
 [[ -n "$MIN_TEAM" ]] && ARGS+=(--min-team "$MIN_TEAM")
 [[ -n "$RB_DST_STACK" ]] && ARGS+=(--rb-dst-stack)
+
+# Tee all subsequent output (including Python logs) to the run log as well as stdout
+exec > >(tee -a "$RUN_LOG") 2>&1
 
 python -m src.cli "${ARGS[@]}"
