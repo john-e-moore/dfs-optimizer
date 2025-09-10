@@ -15,7 +15,7 @@ set -euo pipefail
 : "${ALLOW_QB_VS_DST:=}"
 : "${MIN_SUM_PROJECTION:=}"
 : "${MIN_SUM_OWNERSHIP:=}"
-: "${MAX_SUM_OWNERSHIP:=}"
+: "${MAX_SUM_OWNERSHIP:=120}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"

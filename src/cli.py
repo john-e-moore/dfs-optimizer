@@ -101,6 +101,22 @@ def _parse_min_team(values: List[str] | None) -> Dict[str, int]:
     return out
 
 
+def _normalize_ownership_fraction(value: float | None) -> float | None:
+    """
+    Accept both fraction (0..1) and percentage-style inputs (>1, e.g., 120 for 120%).
+    Values greater than 2.0 are interpreted as percents and divided by 100.
+    """
+    if value is None:
+        return None
+    try:
+        v = float(value)
+    except Exception:
+        return value
+    if v > 2.0:
+        return v / 100.0
+    return v
+
+
 def _compute_timestamped_paths(default_unfiltered: str, default_filtered: str) -> tuple[str, str]:
     # If user left defaults, place outputs under timestamp-named subfolder; otherwise honor custom paths
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -150,6 +166,10 @@ def main(argv: list[str] | None = None) -> int:
         a, b = sorted(parts)
         game_stack_target = f"{a}-{b}"
 
+    # Normalize ownership thresholds to fractions if user passed percents like 120.0
+    min_sum_ownership = _normalize_ownership_fraction(args.min_sum_ownership)
+    max_sum_ownership = _normalize_ownership_fraction(args.max_sum_ownership)
+
     params = Parameters(
         lineup_count=args.lineups,
         min_salary=args.min_salary,
@@ -159,8 +179,8 @@ def main(argv: list[str] | None = None) -> int:
         game_stack_target=game_stack_target,
         min_sum_projection=min_sum_projection,
         min_player_projection=args.min_player_projection,
-        min_sum_ownership=args.min_sum_ownership,
-        max_sum_ownership=args.max_sum_ownership,
+        min_sum_ownership=min_sum_ownership,
+        max_sum_ownership=max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
         max_product_ownership=args.max_product_ownership,
         excluded_players=excluded_players,
