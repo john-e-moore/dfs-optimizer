@@ -62,3 +62,5 @@ def write_json(obj, path: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
     logger.info("Wrote JSON: %s", path)
+
+

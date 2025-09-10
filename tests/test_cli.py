@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from dfs_optimizer.cli import main
+from src.cli import main
 
 
 def test_cli_smoke(monkeypatch):

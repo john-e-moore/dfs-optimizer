@@ -88,3 +88,5 @@ def load_and_clean(csv_path: str) -> pd.DataFrame:
 
 def write_cleaned(df: pd.DataFrame, out_path: str) -> None:
     write_csv(df, out_path)
+
+

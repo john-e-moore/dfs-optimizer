@@ -1,8 +1,8 @@
 import os
 import pandas as pd
 
-from dfs_optimizer.logging_utils import setup_logger
-from dfs_optimizer.io_utils import ensure_dir, write_csv, read_csv, write_excel_with_tabs
+from src.logging_utils import setup_logger
+from src.io_utils import ensure_dir, write_csv, read_csv, write_excel_with_tabs
 
 
 def test_setup_logger_idempotent():

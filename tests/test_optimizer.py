@@ -1,7 +1,7 @@
 import pandas as pd
 
-from dfs_optimizer.models import players_from_df, Parameters
-from dfs_optimizer.optimizer import generate_lineups, lineups_to_dataframe
+from src.models import players_from_df, Parameters
+from src.optimizer import generate_lineups, lineups_to_dataframe
 
 
 def synthetic_players_df():

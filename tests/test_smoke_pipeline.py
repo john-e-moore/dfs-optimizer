@@ -2,9 +2,9 @@ import re
 import numpy as np
 import pandas as pd
 
-from dfs_optimizer.models import players_from_df, Parameters
-from dfs_optimizer.optimizer import generate_lineups, lineups_to_dataframe
-from dfs_optimizer.filters import filter_lineups
+from src.models import players_from_df, Parameters
+from src.optimizer import generate_lineups, lineups_to_dataframe
+from src.filters import filter_lineups
 
 
 def synthetic_pool_df():

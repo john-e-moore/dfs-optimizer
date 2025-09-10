@@ -13,8 +13,8 @@ class FilterResult:
     dropped: int
 
 
-def _passes_min_player_projection(lineup: LineupResult, threshold: float) -> bool:
-    return all(p.projection >= threshold for p in lineup.players)
+def _passes_min_sum_projection(lineup: LineupResult, threshold: float) -> bool:
+    return lineup.total_projection >= threshold
 
 
 def _passes_sum_ownership(lineup: LineupResult, min_sum: Optional[float], max_sum: Optional[float]) -> bool:
@@ -38,7 +38,7 @@ def _passes_product_ownership(lineup: LineupResult, min_prod: Optional[float], m
 def filter_lineups(lineups: List[LineupResult], params: Parameters) -> FilterResult:
     if not any(
         [
-            params.min_player_projection is not None,
+            params.min_sum_projection is not None,
             params.min_sum_ownership is not None,
             params.max_sum_ownership is not None,
             params.min_product_ownership is not None,
@@ -49,8 +49,9 @@ def filter_lineups(lineups: List[LineupResult], params: Parameters) -> FilterRes
 
     kept: List[LineupResult] = []
     for lu in lineups:
-        if params.min_player_projection is not None and not _passes_min_player_projection(
-            lu, params.min_player_projection
+        # New lineup-level projection filter
+        if params.min_sum_projection is not None and not _passes_min_sum_projection(
+            lu, params.min_sum_projection
         ):
             continue
         if not _passes_sum_ownership(lu, params.min_sum_ownership, params.max_sum_ownership):
@@ -61,3 +62,5 @@ def filter_lineups(lineups: List[LineupResult], params: Parameters) -> FilterRes
             continue
         kept.append(lu)
     return FilterResult(lineups=kept, dropped=len(lineups) - len(kept))
+
+

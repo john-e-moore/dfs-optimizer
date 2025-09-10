@@ -149,19 +149,26 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     # Precompute sets
     team_to_qb_idxs: Dict[str, List[int]] = {}
     team_to_wrte_idxs: Dict[str, List[int]] = {}
+    team_to_rb_idxs: Dict[str, List[int]] = {}
+    team_to_all_idxs: Dict[str, List[int]] = {}
     game_to_idxs: Dict[str, List[int]] = {}
     dst_opp_to_idxs: Dict[str, List[int]] = {}
+    name_to_idxs: Dict[str, List[int]] = {}
 
     for i, p in enumerate(players):
         if p.position == "QB":
             team_to_qb_idxs.setdefault(p.team, []).append(i)
         if p.position in {"WR", "TE"}:
             team_to_wrte_idxs.setdefault(p.team, []).append(i)
+        if p.position == "RB":
+            team_to_rb_idxs.setdefault(p.team, []).append(i)
+        team_to_all_idxs.setdefault(p.team, []).append(i)
         if p.position == "DST":
             dst_opp_to_idxs.setdefault(p.opponent, []).append(i)
         # Exclude DST from game stack constraints
         if p.position != "DST":
             game_to_idxs.setdefault(game_key(p.team, p.opponent), []).append(i)
+        name_to_idxs.setdefault(p.name, []).append(i)
 
     lineups: List[LineupResult] = []
     previous_solutions: List[List[int]] = []
@@ -193,6 +200,26 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     # Salary bounds
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
+
+    # Exclusions by player name
+    if params.excluded_players:
+        for name in params.excluded_players:
+            for i in name_to_idxs.get(name, []):
+                prob += x[i] == 0
+
+    # Exclusions by team
+    if params.excluded_teams:
+        for t in params.excluded_teams:
+            for i in team_to_all_idxs.get(t, []):
+                prob += x[i] == 0
+
+    # Required players by name
+    if params.included_players:
+        for name in params.included_players:
+            idxs = name_to_idxs.get(name, [])
+            assert idxs, f"Included player not in pool: {name}"
+            for i in idxs:
+                prob += x[i] == 1
 
     # Stack with QB: sum WR/TE from QB team >= stack
     if params.stack and params.stack > 0:
@@ -226,6 +253,29 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
                     + pulp.lpSum(x[i] for i in opp_dst_idxs)
                     <= 1
                 )
+
+    # Minimum players by team
+    if params.min_players_by_team:
+        for t, m in params.min_players_by_team.items():
+            idxs = team_to_all_idxs.get(t, [])
+            if idxs:
+                prob += pulp.lpSum(x[i] for i in idxs) >= int(m)
+
+    # RB/DST stack: if DST from team t is selected, require at least one RB from team t
+    if params.rb_dst_stack:
+        for t, dst_idxs in team_to_all_idxs.items():
+            # Filter DST indices for team t
+            dst_idxs_t = [i for i in dst_idxs if players[i].position == "DST"]
+            rb_idxs_t = team_to_rb_idxs.get(t, [])
+            if not dst_idxs_t:
+                continue
+            # If a DST exists but no RBs exist for that team, this will make selection of that DST impossible
+            for i_dst in dst_idxs_t:
+                if rb_idxs_t:
+                    prob += x[i_dst] <= pulp.lpSum(x[i] for i in rb_idxs_t)
+                else:
+                    # No RBs: force DST off to maintain feasibility
+                    prob += x[i_dst] == 0
 
     # Iteratively solve and add uniqueness constraints
     while len(lineups) < target_lineups:
@@ -313,3 +363,5 @@ def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
         if c not in df.columns:
             df[c] = None
     return df[cols]
+
+

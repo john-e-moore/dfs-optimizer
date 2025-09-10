@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import argparse
+import sys
+from typing import List, Set, Dict
+
+import pandas as pd
+import time
+import os
+from datetime import datetime
+
+from .data_loader import load_and_clean
+from .models import players_from_df, Parameters
+from .optimizer import generate_lineups, lineups_to_dataframe
+from .filters import filter_lineups
+from .reporting import export_workbook
+from .logging_utils import setup_logger
+from .observability import (
+    snapshot_cleaned_projections,
+    snapshot_players_pool,
+    snapshot_lineups,
+    snapshot_parameters,
+)
+from .io_utils import ensure_dir
+
+logger = setup_logger(__name__)
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="DFS Lineup Optimizer")
+    p.add_argument("--projections", type=str, required=False,
+                   default="data/DraftKings NFL DFS Projections -- Main Slate.csv",
+                   help="Path to projections CSV")
+    p.add_argument("--lineups", type=int, default=5000)
+    p.add_argument("--min-salary", type=int, default=45000)
+    p.add_argument("--allow-qb-vs-dst", action="store_true")
+    p.add_argument("--stack", type=int, default=1)
+    p.add_argument("--game-stack", type=int, default=0)
+    # Performance
+    p.add_argument("--solver-threads", type=int, default=None, help="Number of solver threads")
+    p.add_argument("--solver-time-limit-s", type=int, default=None, help="Solver time limit in seconds")
+    # Filters
+    # Deprecated (still accepted): --min-player-projection
+    p.add_argument("--min-player-projection", type=float, default=None, help=argparse.SUPPRESS)
+    p.add_argument("--min-sum-projection", type=float, default=None,
+                   help="Minimum total projection per lineup (replaces --min-player-projection)")
+    p.add_argument("--min-sum-ownership", type=float, default=None,
+                   help="Fraction 0..1")
+    p.add_argument("--max-sum-ownership", type=float, default=None,
+                   help="Fraction 0..1")
+    p.add_argument("--min-product-ownership", type=float, default=None)
+    p.add_argument("--max-product-ownership", type=float, default=None)
+
+    # New pruning/constraints
+    p.add_argument("--exclude-players", action="append", default=None,
+                   help="Player names to exclude (comma-separated or repeat flag)")
+    p.add_argument("--include-players", action="append", default=None,
+                   help="Player names to force include in all lineups (comma-separated or repeat flag)")
+    p.add_argument("--exclude-teams", action="append", default=None,
+                   help="Teams to exclude (comma-separated or repeat flag; e.g., CAR or BUF,CAR)")
+    p.add_argument("--min-team", action="append", default=None,
+                   help="Minimum players by team, repeatable in TEAM:COUNT format (e.g., CAR:3)")
+    p.add_argument("--rb-dst-stack", action="store_true",
+                   help="Require an RB from the same team as the selected DST in each lineup")
+
+    p.add_argument("--out-unfiltered", type=str, default="output/unfiltered_lineups.xlsx")
+    p.add_argument("--out-filtered", type=str, default="output/filtered_lineups.xlsx")
+    return p
+
+
+def _parse_multi(values: List[str] | None) -> List[str]:
+    if not values:
+        return []
+    items: List[str] = []
+    for v in values:
+        parts = [x.strip() for x in str(v).split(",") if str(x).strip()]
+        items.extend(parts)
+    return items
+
+
+def _parse_min_team(values: List[str] | None) -> Dict[str, int]:
+    out: Dict[str, int] = {}
+    if not values:
+        return out
+    for v in values:
+        parts = _parse_multi([v])
+        for part in parts:
+            if ":" not in part:
+                raise SystemExit(f"Invalid --min-team value: '{part}'. Expected TEAM:COUNT")
+            team, count_str = part.split(":", 1)
+            team = team.strip().upper()
+            try:
+                count = int(count_str)
+            except Exception:
+                raise SystemExit(f"Invalid --min-team count in '{part}': must be integer")
+            if count < 0:
+                raise SystemExit(f"Invalid --min-team count in '{part}': must be non-negative")
+            out[team] = count
+    return out
+
+
+def _compute_timestamped_paths(default_unfiltered: str, default_filtered: str) -> tuple[str, str]:
+    # If user left defaults, place outputs under timestamp-named subfolder; otherwise honor custom paths
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    def under_timestamp(path: str) -> str:
+        d = os.path.dirname(path)
+        b = os.path.basename(path)
+        d = d or "."
+        out_dir = os.path.join(d, timestamp)
+        ensure_dir(os.path.join(out_dir, "dummy"))  # create directory
+        return os.path.join(out_dir, b)
+
+    u = default_unfiltered
+    f = default_filtered
+    if default_unfiltered == "output/unfiltered_lineups.xlsx":
+        u = under_timestamp(default_unfiltered)
+    if default_filtered == "output/filtered_lineups.xlsx":
+        f = under_timestamp(default_filtered)
+    return u, f
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_arg_parser().parse_args(argv)
+
+    # Deprecation mapping for --min-player-projection -> --min-sum-projection
+    min_sum_projection = args.min_sum_projection
+    # Note: argparse lowercases destination name, maintain the exact spelling used above
+    if min_sum_projection is None and getattr(args, "min_player_projection", None) is not None:
+        print("Warning: --min-player-projection is deprecated; use --min-sum-projection instead", file=sys.stderr)
+        min_sum_projection = getattr(args, "min_player_projection")
+
+    # Normalize list-like arguments
+    excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
+    included_players: Set[str] = set(_parse_multi(args.include_players)) if args.include_players is not None else set()
+    excluded_teams: Set[str] = {s.upper() for s in _parse_multi(args.exclude_teams)} if args.exclude_teams is not None else set()
+    min_players_by_team: Dict[str, int] = _parse_min_team(args.min_team)
+
+    params = Parameters(
+        lineup_count=args.lineups,
+        min_salary=args.min_salary,
+        allow_qb_vs_dst=args.allow_qb_vs_dst,
+        stack=args.stack,
+        game_stack=args.game_stack,
+        min_sum_projection=min_sum_projection,
+        min_player_projection=args.min_player_projection,
+        min_sum_ownership=args.min_sum_ownership,
+        max_sum_ownership=args.max_sum_ownership,
+        min_product_ownership=args.min_product_ownership,
+        max_product_ownership=args.max_product_ownership,
+        excluded_players=excluded_players,
+        included_players=included_players,
+        excluded_teams=excluded_teams,
+        min_players_by_team=min_players_by_team,
+        rb_dst_stack=bool(args.rb_dst_stack),
+        solver_threads=args.solver_threads,
+        solver_time_limit_s=args.solver_time_limit_s,
+    )
+    params.validate()
+
+    cleaned = load_and_clean(args.projections)
+    # Determine output paths (timestamped if defaults) and run directory
+    out_unfiltered, out_filtered = _compute_timestamped_paths(args.out_unfiltered, args.out_filtered)
+    run_dir = os.path.dirname(out_unfiltered) or "."
+    # Save early snapshots to the run directory as well
+    snapshot_cleaned_projections(cleaned, path=os.path.join(run_dir, "cleaned_projections.csv"))
+    players = players_from_df(cleaned)
+    snapshot_players_pool(cleaned, path=os.path.join(run_dir, "players_pool.csv"))
+
+    logger.info("Generating lineups: target=%d", min(params.lineup_count, 5000))
+    t0 = time.time()
+    lineups = generate_lineups(players, params)
+    elapsed = time.time() - t0
+    unfiltered_df = lineups_to_dataframe(lineups)
+    snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups_unfiltered.json"))
+    export_workbook(cleaned, params, unfiltered_df, out_unfiltered)
+
+    fr = filter_lineups(lineups, params)
+    filtered_df = lineups_to_dataframe(fr.lineups)
+    snapshot_lineups(fr.lineups, path=os.path.join(run_dir, "lineups_filtered.json"))
+    snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
+    export_workbook(cleaned, params, filtered_df, out_filtered)
+
+    # Human-friendly timing
+    if elapsed >= 120:
+        mins = int(elapsed // 60)
+        secs = int(elapsed % 60)
+        elapsed_str = f"{mins}m {secs}s"
+    else:
+        elapsed_str = f"{elapsed:.2f}s"
+    logger.info("Completed. Unfiltered=%d Filtered=%d Dropped=%d Time=%s", len(unfiltered_df), len(filtered_df), fr.dropped, elapsed_str)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+

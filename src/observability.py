@@ -50,5 +50,19 @@ def snapshot_lineups(lineups: List[LineupResult], path: str = "artifacts/lineups
 
 def snapshot_parameters(params: Parameters, path: str = "artifacts/parameters.json") -> None:
     from dataclasses import asdict
+    def _json_safe(obj):
+        if isinstance(obj, set):
+            return sorted(list(obj))
+        if isinstance(obj, tuple):
+            return [_json_safe(x) for x in obj]
+        if isinstance(obj, list):
+            return [_json_safe(x) for x in obj]
+        if isinstance(obj, dict):
+            return {str(k): _json_safe(v) for k, v in obj.items()}
+        return obj
 
-    write_json(asdict(params), path)
+    data = asdict(params)
+    safe = _json_safe(data)
+    write_json(safe, path)
+
+

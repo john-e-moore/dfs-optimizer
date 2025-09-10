@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from dfs_optimizer.models import Player, Parameters, game_key, players_from_df
+from src.models import Player, Parameters, game_key, players_from_df
 
 
 def test_game_key_ordering():
