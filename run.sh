@@ -22,7 +22,7 @@ set -euo pipefail
 : "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
-: "${RB_DST_STACK:=False}"
+: "${RB_DST_STACK:=}"
 : "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
@@ -69,7 +69,13 @@ ARGS=(
 [[ -n "$INCLUDE_PLAYERS" ]] && ARGS+=(--include-players "$INCLUDE_PLAYERS")
 [[ -n "$EXCLUDE_TEAMS" ]] && ARGS+=(--exclude-teams "$EXCLUDE_TEAMS")
 [[ -n "$MIN_TEAM" ]] && ARGS+=(--min-team "$MIN_TEAM")
-[[ -n "$RB_DST_STACK" ]] && ARGS+=(--rb-dst-stack)
+if [[ -n "$RB_DST_STACK" ]]; then
+	case "${RB_DST_STACK,,}" in
+		1|true|yes|on|enable)
+			ARGS+=(--rb-dst-stack)
+			;;
+	esac
+fi
 
 # Tee all subsequent output (including Python logs) to the run log as well as stdout
 exec > >(tee -a "$RUN_LOG") 2>&1
