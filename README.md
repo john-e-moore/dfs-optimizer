@@ -70,7 +70,7 @@ Additionally, JSON/CSV snapshots are written to `artifacts/` for debugging and v
   - stack: number of WR/TE paired with the QB’s team (default 1)
   - game_stack: minimum players from the same game (default 0)
 - Filters (optional, applied after generating lineups):
-  - min_player_projection
+  - min_sum_projection (replaces min_player_projection)
   - min_sum_ownership, max_sum_ownership (on 0–1 scale before display)
   - min_product_ownership, max_product_ownership
 
@@ -103,11 +103,21 @@ python -m dfs_optimizer.cli \
   --out-filtered output/filtered_lineups.xlsx \
   # Optional filters:
   [--allow-qb-vs-dst] \
-  [--min-player-projection 1.0] \
+  [--min-sum-projection 120.0] \
   [--min-sum-ownership 0.9] [--max-sum-ownership 1.4] \
   [--min-product-ownership 1e-9] [--max-product-ownership 0.1] \
   # Optional performance:
   [--solver-threads 2] [--solver-time-limit-s 30]
+```
+
+Additional pruning/constraints flags:
+
+```bash
+  [--exclude-players "Player A,Player B"] \
+  [--include-players "Player C"] \
+  [--exclude-teams "BUF,CAR"] \
+  [--min-team "CAR:3" --min-team "BUF:2"] \
+  [--rb-dst-stack]
 ```
 
 ### Development quality

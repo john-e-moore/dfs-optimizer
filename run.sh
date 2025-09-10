@@ -12,11 +12,16 @@ set -euo pipefail
 
 # Optional flags (left empty to use defaults); environment can override
 : "${ALLOW_QB_VS_DST:=}"
-: "${MIN_PLAYER_PROJECTION:=}"
+: "${MIN_SUM_PROJECTION:=}"
 : "${MIN_SUM_OWNERSHIP:=}"
 : "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
+: "${EXCLUDE_PLAYERS:=}"
+: "${INCLUDE_PLAYERS:=}"
+: "${EXCLUDE_TEAMS:=}"
+: "${MIN_TEAM:=}"
+: "${RB_DST_STACK:=}"
 : "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
@@ -38,12 +43,17 @@ ARGS=(
 
 # Conditionally add optional flags if variables are set
 [[ -n "$ALLOW_QB_VS_DST" ]] && ARGS+=(--allow-qb-vs-dst)
-[[ -n "$MIN_PLAYER_PROJECTION" ]] && ARGS+=(--min-player-projection "$MIN_PLAYER_PROJECTION")
+[[ -n "$MIN_SUM_PROJECTION" ]] && ARGS+=(--min-sum-projection "$MIN_SUM_PROJECTION")
 [[ -n "$MIN_SUM_OWNERSHIP" ]] && ARGS+=(--min-sum-ownership "$MIN_SUM_OWNERSHIP")
 [[ -n "$MAX_SUM_OWNERSHIP" ]] && ARGS+=(--max-sum-ownership "$MAX_SUM_OWNERSHIP")
 [[ -n "$MIN_PRODUCT_OWNERSHIP" ]] && ARGS+=(--min-product-ownership "$MIN_PRODUCT_OWNERSHIP")
 [[ -n "$MAX_PRODUCT_OWNERSHIP" ]] && ARGS+=(--max-product-ownership "$MAX_PRODUCT_OWNERSHIP")
 [[ -n "$SOLVER_THREADS" ]] && ARGS+=(--solver-threads "$SOLVER_THREADS")
 [[ -n "$SOLVER_TIME_LIMIT_S" ]] && ARGS+=(--solver-time-limit-s "$SOLVER_TIME_LIMIT_S")
+[[ -n "$EXCLUDE_PLAYERS" ]] && ARGS+=(--exclude-players "$EXCLUDE_PLAYERS")
+[[ -n "$INCLUDE_PLAYERS" ]] && ARGS+=(--include-players "$INCLUDE_PLAYERS")
+[[ -n "$EXCLUDE_TEAMS" ]] && ARGS+=(--exclude-teams "$EXCLUDE_TEAMS")
+[[ -n "$MIN_TEAM" ]] && ARGS+=(--min-team "$MIN_TEAM")
+[[ -n "$RB_DST_STACK" ]] && ARGS+=(--rb-dst-stack)
 
 python -m dfs_optimizer.cli "${ARGS[@]}"

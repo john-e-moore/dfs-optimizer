@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import List, Set, Dict
 
 import pandas as pd
 import time
@@ -36,7 +37,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--solver-threads", type=int, default=None, help="Number of solver threads")
     p.add_argument("--solver-time-limit-s", type=int, default=None, help="Solver time limit in seconds")
     # Filters
-    p.add_argument("--min-player-projection", type=float, default=None)
+    # Deprecated (still accepted): --min-player-projection
+    p.add_argument("--min-player-projection", type=float, default=None, help=argparse.SUPPRESS)
+    p.add_argument("--min-sum-projection", type=float, default=None,
+                   help="Minimum total projection per lineup (replaces --min-player-projection)")
     p.add_argument("--min-sum-ownership", type=float, default=None,
                    help="Fraction 0..1")
     p.add_argument("--max-sum-ownership", type=float, default=None,
@@ -44,13 +48,69 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--min-product-ownership", type=float, default=None)
     p.add_argument("--max-product-ownership", type=float, default=None)
 
+    # New pruning/constraints
+    p.add_argument("--exclude-players", action="append", default=None,
+                   help="Player names to exclude (comma-separated or repeat flag)")
+    p.add_argument("--include-players", action="append", default=None,
+                   help="Player names to force include in all lineups (comma-separated or repeat flag)")
+    p.add_argument("--exclude-teams", action="append", default=None,
+                   help="Teams to exclude (comma-separated or repeat flag; e.g., CAR or BUF,CAR)")
+    p.add_argument("--min-team", action="append", default=None,
+                   help="Minimum players by team, repeatable in TEAM:COUNT format (e.g., CAR:3)")
+    p.add_argument("--rb-dst-stack", action="store_true",
+                   help="Require an RB from the same team as the selected DST in each lineup")
+
     p.add_argument("--out-unfiltered", type=str, default="output/unfiltered_lineups.xlsx")
     p.add_argument("--out-filtered", type=str, default="output/filtered_lineups.xlsx")
     return p
 
 
+def _parse_multi(values: List[str] | None) -> List[str]:
+    if not values:
+        return []
+    items: List[str] = []
+    for v in values:
+        parts = [x.strip() for x in str(v).split(",") if str(x).strip()]
+        items.extend(parts)
+    return items
+
+
+def _parse_min_team(values: List[str] | None) -> Dict[str, int]:
+    out: Dict[str, int] = {}
+    if not values:
+        return out
+    for v in values:
+        parts = _parse_multi([v])
+        for part in parts:
+            if ":" not in part:
+                raise SystemExit(f"Invalid --min-team value: '{part}'. Expected TEAM:COUNT")
+            team, count_str = part.split(":", 1)
+            team = team.strip().upper()
+            try:
+                count = int(count_str)
+            except Exception:
+                raise SystemExit(f"Invalid --min-team count in '{part}': must be integer")
+            if count < 0:
+                raise SystemExit(f"Invalid --min-team count in '{part}': must be non-negative")
+            out[team] = count
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
+
+    # Deprecation mapping for --min-player-projection -> --min-sum-projection
+    min_sum_projection = args.min_sum_projection
+    # Note: argparse lowercases destination name, maintain the exact spelling used above
+    if min_sum_projection is None and getattr(args, "min_player_projection", None) is not None:
+        print("Warning: --min-player-projection is deprecated; use --min-sum-projection instead", file=sys.stderr)
+        min_sum_projection = getattr(args, "min_player_projection")
+
+    # Normalize list-like arguments
+    excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
+    included_players: Set[str] = set(_parse_multi(args.include_players)) if args.include_players is not None else set()
+    excluded_teams: Set[str] = {s.upper() for s in _parse_multi(args.exclude_teams)} if args.exclude_teams is not None else set()
+    min_players_by_team: Dict[str, int] = _parse_min_team(args.min_team)
 
     params = Parameters(
         lineup_count=args.lineups,
@@ -58,11 +118,17 @@ def main(argv: list[str] | None = None) -> int:
         allow_qb_vs_dst=args.allow_qb_vs_dst,
         stack=args.stack,
         game_stack=args.game_stack,
+        min_sum_projection=min_sum_projection,
         min_player_projection=args.min_player_projection,
         min_sum_ownership=args.min_sum_ownership,
         max_sum_ownership=args.max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
         max_product_ownership=args.max_product_ownership,
+        excluded_players=excluded_players,
+        included_players=included_players,
+        excluded_teams=excluded_teams,
+        min_players_by_team=min_players_by_team,
+        rb_dst_stack=bool(args.rb_dst_stack),
         solver_threads=args.solver_threads,
         solver_time_limit_s=args.solver_time_limit_s,
     )

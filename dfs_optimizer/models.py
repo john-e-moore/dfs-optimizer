@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set
 
 import pandas as pd
 
@@ -29,6 +29,14 @@ class Parameters:
     allow_qb_vs_dst: bool = False
     stack: int = 1
     game_stack: int = 0
+    # New constraints/filters
+    excluded_players: Set[str] = field(default_factory=set)
+    included_players: Set[str] = field(default_factory=set)
+    excluded_teams: Set[str] = field(default_factory=set)
+    min_players_by_team: Dict[str, int] = field(default_factory=dict)
+    rb_dst_stack: bool = False
+    # Lineup-level projection filter (replaces per-player projection)
+    min_sum_projection: Optional[float] = None
     min_player_projection: Optional[float] = None
     min_sum_ownership: Optional[float] = None
     max_sum_ownership: Optional[float] = None
@@ -43,6 +51,10 @@ class Parameters:
         assert 0 <= self.min_salary <= 50000
         assert self.stack >= 0
         assert self.game_stack >= 0
+        # Basic sanity for new params (detailed feasibility checks handled elsewhere)
+        for k, v in self.min_players_by_team.items():
+            assert isinstance(k, str) and k, "Team key must be non-empty string"
+            assert isinstance(v, int) and v >= 0, "Minimum players by team must be non-negative integer"
         if self.min_sum_ownership is not None and self.max_sum_ownership is not None:
             assert self.min_sum_ownership <= self.max_sum_ownership
         if self.min_product_ownership is not None and self.max_product_ownership is not None:
