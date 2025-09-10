@@ -35,8 +35,8 @@ class LineupResult:
         # Display sum ownership as integer percentage (e.g., 1.56 -> 156)
         row["Sum Ownership"] = int(round(self.sum_ownership * 100))
         row["Product Ownership"] = int(self.product_ownership * 1_000_000_000)
-        # Display weighted ownership as integer percent: sum((salary/50000)*ownership) * 100
-        row["Weighted Ownership"] = int(round(self.weighted_ownership * 100))
+        # Display weighted ownership as percent with 1 decimal: sum((salary/50000)*ownership) * 100
+        row["Weighted Ownership"] = round(self.weighted_ownership * 100, 1)
         row["# Stacked"] = int(self.stack_count)
         row["QB Stack"] = ",".join(self.stack_positions)
         row["RB/DST Stack"] = bool(self.rb_dst_stack)
@@ -107,10 +107,12 @@ def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int
     qb_players = [p for p in players if p.position == "QB"]
     assert len(qb_players) == 1
     qb_team = qb_players[0].team
-    # Unique positions for display
-    stacked = sorted({p.position for p in players if p.team == qb_team and p.position in {"WR", "TE"}})
-    # Count of WR/TE stacked (not deduplicated)
-    stack_count = sum(1 for p in players if p.team == qb_team and p.position in {"WR", "TE"})
+    # Positions stacked with QB (with multiplicity) for display, e.g., WR,WR,TE
+    positions = [p.position for p in players if p.team == qb_team and p.position in {"WR", "TE"}]
+    # Sort to keep WRs before TEs for readability
+    positions_sorted = tuple(sorted(positions, key=lambda pos: 0 if pos == "WR" else 1))
+    # Count of WR/TE stacked (with multiplicity)
+    stack_count = len(positions_sorted)
     # Compute max players from same game (exclude DST)
     game_counts: Dict[str, int] = {}
     for p in players:
@@ -129,7 +131,7 @@ def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int
     # RB/DST stack: any RB matching the DST team
     dst_team = next((p.team for p in players if p.position == "DST"), None)
     rb_dst = any((p.position == "RB" and p.team == dst_team) for p in players) if dst_team else False
-    return tuple(stacked), max_game, max_game_key, stack_count, all_games_sorted, rb_dst
+    return positions_sorted, max_game, max_game_key, stack_count, all_games_sorted, rb_dst
 
 
 def generate_lineups(players: List[Player], params: Parameters, max_lineups: int | None = None) -> List[LineupResult]:
