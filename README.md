@@ -35,9 +35,9 @@ Input CSV (by default at `data/DraftKings NFL DFS Projections -- Main Slate.csv`
 Ownership can be in 0–1 or 0–100; it is normalized to 0–1 during loading.
 
 ### Outputs
-Two Excel workbooks are produced by default:
-- `output/unfiltered_lineups.xlsx`
-- `output/filtered_lineups.xlsx` (only if filters are enabled; otherwise it mirrors unfiltered)
+By default, outputs are written under a timestamped subfolder, e.g., `output/20250910_142535/`:
+- `output/<timestamp>/unfiltered_lineups.xlsx`
+- `output/<timestamp>/filtered_lineups.xlsx` (only if filters are enabled; otherwise it mirrors unfiltered)
 
 Each workbook contains:
 - Projections: a copy of the input projections (cleaned/normalized)
@@ -60,7 +60,10 @@ Each workbook contains:
   - # Lineups
   - % Lineups (rounded integer percent)
 
-Additionally, JSON/CSV snapshots are written to `artifacts/` for debugging and visibility during development (cleaned projections, pools, lineups, parameters).
+Additionally, CSV/JSON snapshots are written alongside the Excel files in the same timestamped run directory for traceability:
+- `cleaned_projections.csv`, `players_pool.csv`
+- `lineups_unfiltered.json`, `lineups_filtered.json`
+- `parameters.json`
 
 ### Parameters and filters
 - Core parameters:
@@ -130,7 +133,7 @@ Additional pruning/constraints flags:
 - Extremely tight/contradictory constraints (e.g., high min salary + strong stacks + restrictive filters) may yield few or no lineups
 - The solver returns globally optimal lineups for the provided constraints; generating thousands of unique lineups can be time-consuming. Use `--solver-time-limit-s` and `--solver-threads` if needed
 
--### Project structure
+### Project structure
 - `src/`
   - `data_loader.py`: load, validate, and normalize projections
   - `models.py`: domain dataclasses and helpers
@@ -145,3 +148,152 @@ Additional pruning/constraints flags:
 - `run.sh`: convenience script to run the pipeline
 
 If you have questions or want to extend constraints (e.g., custom stacks, exposure caps), the code is organized to make that straightforward—start with `models.py` and `optimizer.py`.
+
+### Examples: common run configurations
+
+Below are copy-pasteable examples for typical strategies. Use either the CLI form or the `./run.sh` form (env vars override script defaults).
+
+- **Basic run (no special stacks)**
+  - CLI:
+    ```bash
+    python -m src.cli --lineups 500 --min-salary 49000 --stack 1 --game-stack 0
+    ```
+  - Script (writes to `output/<timestamp>/...`):
+    ```bash
+    LINEUPS=500 MIN_SALARY=49000 STACK=1 GAME_STACK=0 ./run.sh
+    ```
+
+- **QB stacking (pair QB with teammates WR/TE)**
+  - Increase the number of teammates required with `--stack`:
+    ```bash
+    # Require QB + 2 pass-catchers (WR/TE)
+    python -m src.cli --stack 2 --lineups 1000
+    ```
+  - Script equivalent:
+    ```bash
+    STACK=2 LINEUPS=1000 ./run.sh
+    ```
+
+- **RB/DST stacking (RB from same team as chosen DST)**
+  - CLI:
+    ```bash
+    python -m src.cli --rb-dst-stack --lineups 1000
+    ```
+  - Script:
+    ```bash
+    RB_DST_STACK=1 LINEUPS=1000 ./run.sh
+    ```
+
+- **Game stacking (minimum players from the same game)**
+  - Set a global minimum per lineup with `--game-stack`:
+    ```bash
+    # At least 4 total players from the same game
+    python -m src.cli --game-stack 4 --lineups 800
+    ```
+  - Script:
+    ```bash
+    GAME_STACK=4 LINEUPS=800 ./run.sh
+    ```
+
+- **Targeted game stack (focus a specific matchup)**
+  - CLI accepts `TEAM1/TEAM2`, `TEAM1-TEAM2`, or `TEAM1@TEAM2` (order-insensitive):
+    ```bash
+    python -m src.cli --game-stack 5 --game-stack-target "BUF/NYJ" --lineups 600
+    ```
+  - Script:
+    ```bash
+    GAME_STACK=5 GAME_STACK_TARGET="BUF/NYJ" LINEUPS=600 ./run.sh
+    ```
+
+- **Prevent QB vs opposing DST**
+  - CLI:
+    ```bash
+    python -m src.cli --stack 2 --allow-qb-vs-dst  # omit flag to disallow
+    ```
+  - Script:
+    ```bash
+    ALLOW_QB_VS_DST=1 STACK=2 ./run.sh   # leave unset to disallow
+    ```
+
+- **Ownership filters (post-generation filtering)**
+  - CLI:
+    ```bash
+    python -m src.cli \
+      --min-sum-ownership 0.80 \
+      --max-sum-ownership 1.40 \
+      --min-product-ownership 1e-9 \
+      --max-product-ownership 1e-1
+    ```
+  - Script:
+    ```bash
+    MIN_SUM_OWNERSHIP=0.80 MAX_SUM_OWNERSHIP=1.40 \
+    MIN_PRODUCT_OWNERSHIP=1e-9 MAX_PRODUCT_OWNERSHIP=1e-1 \
+    ./run.sh
+    ```
+
+- **Include/exclude players and teams; team minimums**
+  - CLI:
+    ```bash
+    python -m src.cli \
+      --include-players "Josh Allen" \
+      --exclude-players "Player A,Player B" \
+      --exclude-teams "CAR,NE" \
+      --min-team "BUF:3" --min-team "NYJ:2"
+    ```
+  - Script:
+    ```bash
+    INCLUDE_PLAYERS="Josh Allen" \
+    EXCLUDE_PLAYERS="Player A,Player B" \
+    EXCLUDE_TEAMS="CAR,NE" \
+    MIN_TEAM="BUF:3,NYJ:2" \
+    ./run.sh
+    ```
+
+- **Performance knobs**
+  - CLI:
+    ```bash
+    python -m src.cli --solver-threads 4 --solver-time-limit-s 30 --lineups 2000
+    ```
+  - Script:
+    ```bash
+    SOLVER_THREADS=4 SOLVER_TIME_LIMIT_S=30 LINEUPS=2000 ./run.sh
+    ```
+
+### Helper scripts: stacking workflows
+
+- **QB stacking across all quarterbacks: `./run_qb_stacks.sh`**
+  - What it does: runs `./run.sh` once per QB discovered in the projections (or a provided list), then aggregates all outputs into two Excel files with a `QB` column.
+  - Default outputs: `output/<timestamp>/qb_stacks_unfiltered.xlsx` and `output/<timestamp>/qb_stacks_filtered.xlsx`.
+  - Examples:
+    ```bash
+    # Run for all QBs in the projections
+    ./run_qb_stacks.sh
+
+    # Run for a specific set of QBs
+    QB_STACKS_QB_LIST="Josh Allen, Jalen Hurts, Patrick Mahomes" ./run_qb_stacks.sh
+
+    # Use a custom projections file and keep intermediates cleaned up
+    PROJECTIONS="/path/to/my.csv" QB_STACKS_KEEP_INTERMEDIATE=0 ./run_qb_stacks.sh
+    ```
+
+- **Game stacking across all games: `./run_game_stacks.sh`**
+  - What it does: discovers all matchups from projections (or uses a provided list), runs `./run.sh` per game with a targeted game stack, then aggregates outputs with a `Game` column.
+  - Default outputs: `output/<timestamp>/game_stacks_unfiltered.xlsx` and `output/<timestamp>/game_stacks_filtered.xlsx`.
+  - Notes:
+    - If you explicitly set `GAME_STACK`, it must be > 0 for this script.
+    - Game keys are normalized; any of `AAA/BBB`, `AAA@BBB`, or `AAA-BBB` is accepted (order-insensitive).
+  - Examples:
+    ```bash
+    # Run for all games discovered in projections (uses script defaults; run.sh defaults to GAME_STACK=5)
+    ./run_game_stacks.sh
+
+    # Run for a specific set of games with a 4-player minimum per targeted game
+    GAME_STACKS_GAME_LIST="BUF/NYJ, DAL-PHI" GAME_STACK=4 ./run_game_stacks.sh
+
+    # Custom projections and remove intermediates after aggregation
+    PROJECTIONS="/path/to/my.csv" GAME_STACKS_KEEP_INTERMEDIATE=0 ./run_game_stacks.sh
+    ```
+
+### Tips
+- `./run.sh` sets opinionated defaults (e.g., higher `MIN_SALARY`, nonzero `GAME_STACK`). Override via env vars as shown above if desired.
+- When using default output names, both the CLI and scripts will place results under `output/<timestamp>/` automatically.
