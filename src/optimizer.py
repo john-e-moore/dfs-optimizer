@@ -203,6 +203,25 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
 
+    # Lineup-level projection minimum
+    if params.min_sum_projection is not None:
+        prob += pulp.lpSum(players[i].projection * x[i] for i in index) >= float(params.min_sum_projection)
+
+    # Ownership sum bounds (treat ownership as fraction)
+    if params.min_sum_ownership is not None:
+        prob += pulp.lpSum(players[i].ownership * x[i] for i in index) >= float(params.min_sum_ownership)
+    if params.max_sum_ownership is not None:
+        prob += pulp.lpSum(players[i].ownership * x[i] for i in index) <= float(params.max_sum_ownership)
+
+    # Ownership product bounds via log transform: sum(log(max(ownership, eps)) * x) bounds
+    import math
+    eps = 1e-6
+    log_ownership = {i: math.log(max(players[i].ownership, eps)) for i in index}
+    if params.min_product_ownership is not None:
+        prob += pulp.lpSum(log_ownership[i] * x[i] for i in index) >= math.log(max(params.min_product_ownership, eps))
+    if params.max_product_ownership is not None:
+        prob += pulp.lpSum(log_ownership[i] * x[i] for i in index) <= math.log(max(params.max_product_ownership, eps))
+
     # Exclusions by player name
     if params.excluded_players:
         for name in params.excluded_players:
