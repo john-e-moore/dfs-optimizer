@@ -1,6 +1,6 @@
 ## DFS Lineup Optimizer (DraftKings NFL)
 
-This project builds optimal daily fantasy NFL lineups for the DraftKings Main Slate. It maximizes projected points while respecting roster rules, salary cap, and optional stacking constraints. It also supports lineup-level filtering and produces a clear Excel report with multiple tabs.
+This project builds optimal daily fantasy NFL lineups for the DraftKings Main Slate. It maximizes projected points while respecting roster rules, salary cap, and optional stacking constraints. Constraints like ownership bounds are enforced during optimization, and a clear Excel report is produced with multiple tabs.
 
 ### What it does (in plain terms)
 - Reads a CSV of player projections (name, team, position, salary, projection, ownership).
@@ -36,8 +36,9 @@ Ownership can be in 0–1 or 0–100; it is normalized to 0–1 during loading.
 
 ### Outputs
 By default, outputs are written under a timestamped subfolder, e.g., `output/20250910_142535/`:
-- `output/<timestamp>/unfiltered_lineups.xlsx`
-- `output/<timestamp>/filtered_lineups.xlsx` (only if filters are enabled; otherwise it mirrors unfiltered)
+- `output/<timestamp>/lineups.xlsx`
+- `output/<timestamp>/lineups.json`
+- `output/<timestamp>/parameters.json`
 
 Each workbook contains:
 - Projections: a copy of the input projections (cleaned/normalized)
@@ -62,10 +63,8 @@ Each workbook contains:
 
 Additionally, CSV/JSON snapshots are written alongside the Excel files in the same timestamped run directory for traceability:
 - `cleaned_projections.csv`, `players_pool.csv`
-- `lineups_unfiltered.json`, `lineups_filtered.json`
-- `parameters.json`
 
-### Parameters and filters
+### Parameters and constraints
 - Core parameters:
   - lineup_count (default 5000)
   - min_salary (default 45000)
@@ -73,10 +72,10 @@ Additionally, CSV/JSON snapshots are written alongside the Excel files in the sa
   - stack: number of WR/TE paired with the QB’s team (default 1)
   - game_stack: minimum players from the same game (default 0)
   - game_stack_target: specific matchup to satisfy when game_stack > 0 (normalized `AAA/BBB`; default unset)
-- Filters (optional, applied after generating lineups):
-  - min_sum_projection (replaces min_player_projection)
-  - min_sum_ownership, max_sum_ownership (on 0–1 scale before display)
-  - min_product_ownership, max_product_ownership
+- Constraints (enforced during optimization):
+  - min_sum_projection (minimum total lineup projection)
+  - min_sum_ownership, max_sum_ownership (ownership sum bounds on 0–1 scale)
+  - min_product_ownership, max_product_ownership (implemented via log transform)
 
 ### Performance knobs
 - solver_threads: number of threads for CBC
@@ -105,9 +104,8 @@ python -m src.cli \
   --game-stack 0 \
   # Optional targeted game constraint (order-insensitive, normalized to AAA/BBB):
   [--game-stack-target "BUF/NYJ"] \
-  --out-unfiltered output/unfiltered_lineups.xlsx \
-  --out-filtered output/filtered_lineups.xlsx \
-  # Optional filters:
+  --outdir output \
+  # Optional constraints:
   [--allow-qb-vs-dst] \
   [--min-sum-projection 120.0] \
   [--min-sum-ownership 0.9] [--max-sum-ownership 1.4] \
@@ -141,7 +139,7 @@ Additional pruning/constraints flags:
   - `data_loader.py`: load, validate, and normalize projections
   - `models.py`: domain dataclasses and helpers
   - `optimizer.py`: MILP model and lineup generation
-  - `filters.py`: lineup-level filters
+  - `filters.py`: legacy post-generation filters (kept for reference); constraints are now enforced during optimization
   - `reporting.py`: Excel export and exposure summaries
   - `io_utils.py`, `logging_utils.py`, `observability.py`: utilities and snapshots
   - `cli.py`: command-line interface
