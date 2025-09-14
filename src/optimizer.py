@@ -35,8 +35,8 @@ class LineupResult:
         # Display sum ownership as integer percentage (e.g., 1.56 -> 156)
         row["Sum Ownership"] = int(round(self.sum_ownership * 100))
         row["Product Ownership"] = int(self.product_ownership * 1_000_000_000)
-        # Display weighted ownership as integer percent: sum((salary/50000)*ownership) * 100
-        row["Weighted Ownership"] = int(round(self.weighted_ownership * 100))
+        # Display weighted ownership as percent with 1 decimal: sum((salary/50000)*ownership) * 100
+        row["Weighted Ownership"] = round(self.weighted_ownership * 100, 1)
         row["# Stacked"] = int(self.stack_count)
         row["QB Stack"] = ",".join(self.stack_positions)
         row["RB/DST Stack"] = bool(self.rb_dst_stack)
@@ -107,10 +107,12 @@ def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int
     qb_players = [p for p in players if p.position == "QB"]
     assert len(qb_players) == 1
     qb_team = qb_players[0].team
-    # Unique positions for display
-    stacked = sorted({p.position for p in players if p.team == qb_team and p.position in {"WR", "TE"}})
-    # Count of WR/TE stacked (not deduplicated)
-    stack_count = sum(1 for p in players if p.team == qb_team and p.position in {"WR", "TE"})
+    # Positions stacked with QB (with multiplicity) for display, e.g., WR,WR,TE
+    positions = [p.position for p in players if p.team == qb_team and p.position in {"WR", "TE"}]
+    # Sort to keep WRs before TEs for readability
+    positions_sorted = tuple(sorted(positions, key=lambda pos: 0 if pos == "WR" else 1))
+    # Count of WR/TE stacked (with multiplicity)
+    stack_count = len(positions_sorted)
     # Compute max players from same game (exclude DST)
     game_counts: Dict[str, int] = {}
     for p in players:
@@ -129,7 +131,7 @@ def compute_stack_positions(players: List[Player]) -> Tuple[Tuple[str, ...], int
     # RB/DST stack: any RB matching the DST team
     dst_team = next((p.team for p in players if p.position == "DST"), None)
     rb_dst = any((p.position == "RB" and p.team == dst_team) for p in players) if dst_team else False
-    return tuple(stacked), max_game, max_game_key, stack_count, all_games_sorted, rb_dst
+    return positions_sorted, max_game, max_game_key, stack_count, all_games_sorted, rb_dst
 
 
 def generate_lineups(players: List[Player], params: Parameters, max_lineups: int | None = None) -> List[LineupResult]:
@@ -229,19 +231,28 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
                 >= params.stack * pulp.lpSum(x[i] for i in qb_idxs)
             )
 
-    # Game stack: at least one game with >= game_stack players
-    z = None
+    # Game stack: either targeted game or any game
     if params.game_stack and params.game_stack > 0:
-        z = pulp.LpVariable.dicts(
-            "z_game",
-            list(game_to_idxs.keys()),
-            lowBound=0,
-            upBound=1,
-            cat="Binary",
-        )
-        for g, idxs in game_to_idxs.items():
-            prob += pulp.lpSum(x[i] for i in idxs) >= params.game_stack * z[g]
-        prob += pulp.lpSum(z[g] for g in game_to_idxs.keys()) >= 1
+        if params.game_stack_target:
+            target = params.game_stack_target
+            if target not in game_to_idxs:
+                # If target game key not present (e.g., DST-only or filtered out), force infeasibility of selecting that game
+                # by requiring sum over empty set >= positive value; alternatively, short-circuit by returning empty results later.
+                # Here, we guard by creating an empty constraint that will be unsatisfiable.
+                prob += pulp.lpSum([]) >= params.game_stack  # effectively 0 >= k -> infeasible
+            else:
+                prob += pulp.lpSum(x[i] for i in game_to_idxs[target]) >= params.game_stack
+        else:
+            z = pulp.LpVariable.dicts(
+                "z_game",
+                list(game_to_idxs.keys()),
+                lowBound=0,
+                upBound=1,
+                cat="Binary",
+            )
+            for g, idxs in game_to_idxs.items():
+                prob += pulp.lpSum(x[i] for i in idxs) >= params.game_stack * z[g]
+            prob += pulp.lpSum(z[g] for g in game_to_idxs.keys()) >= 1
 
     # Disallow QB vs opposing DST if configured
     if not params.allow_qb_vs_dst:

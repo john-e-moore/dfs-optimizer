@@ -29,6 +29,7 @@ class Parameters:
     allow_qb_vs_dst: bool = False
     stack: int = 1
     game_stack: int = 0
+    game_stack_target: Optional[str] = None
     # New constraints/filters
     excluded_players: Set[str] = field(default_factory=set)
     included_players: Set[str] = field(default_factory=set)
@@ -51,6 +52,8 @@ class Parameters:
         assert 0 <= self.min_salary <= 50000
         assert self.stack >= 0
         assert self.game_stack >= 0
+        if self.game_stack_target is not None:
+            assert isinstance(self.game_stack_target, str) and self.game_stack_target
         # Basic sanity for new params (detailed feasibility checks handled elsewhere)
         for k, v in self.min_players_by_team.items():
             assert isinstance(k, str) and k, "Team key must be non-empty string"

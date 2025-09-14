@@ -3,10 +3,11 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
-: "${LINEUPS:=50}"
-: "${MIN_SALARY:=49800}"
+: "${LINEUPS:=20}"
+: "${MIN_SALARY:=49600}"
 : "${STACK:=2}"
 : "${GAME_STACK:=0}"
+: "${GAME_STACK_TARGET:=}"
 : "${OUT_UNFILTERED:=output/unfiltered_lineups.xlsx}"
 : "${OUT_FILTERED:=output/filtered_lineups.xlsx}"
 
@@ -17,11 +18,11 @@ set -euo pipefail
 : "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
-: "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
-: "${INCLUDE_PLAYERS:="Geno Smith"}"
+: "${EXCLUDE_PLAYERS:="Christian McCaffrey"}" # "Joe Burrow,Patrick Mahomes"
+: "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
-: "${RB_DST_STACK:=True}"
+: "${RB_DST_STACK:=}"
 : "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
@@ -31,12 +32,26 @@ if [[ -f "venv/bin/activate" ]]; then
 	source "venv/bin/activate"
 fi
 
+## Determine run directory and log path
+# If using defaults, mirror CLI behavior by placing outputs under a timestamped subfolder
+RUN_TS="$(date '+%Y%m%d_%H%M%S')"
+if [[ "$OUT_UNFILTERED" == "output/unfiltered_lineups.xlsx" ]]; then
+    OUT_UNFILTERED="output/${RUN_TS}/unfiltered_lineups.xlsx"
+fi
+if [[ "$OUT_FILTERED" == "output/filtered_lineups.xlsx" ]]; then
+    OUT_FILTERED="output/${RUN_TS}/filtered_lineups.xlsx"
+fi
+RUN_DIR="$(dirname "$OUT_UNFILTERED")"
+mkdir -p "$RUN_DIR"
+RUN_LOG="$RUN_DIR/run.log"
+
 ARGS=(
 	--projections "$PROJECTIONS"
 	--lineups "$LINEUPS"
 	--min-salary "$MIN_SALARY"
 	--stack "$STACK"
 	--game-stack "$GAME_STACK"
+	${GAME_STACK_TARGET:+--game-stack-target "$GAME_STACK_TARGET"}
 	--out-unfiltered "$OUT_UNFILTERED"
 	--out-filtered "$OUT_FILTERED"
 )
@@ -54,6 +69,15 @@ ARGS=(
 [[ -n "$INCLUDE_PLAYERS" ]] && ARGS+=(--include-players "$INCLUDE_PLAYERS")
 [[ -n "$EXCLUDE_TEAMS" ]] && ARGS+=(--exclude-teams "$EXCLUDE_TEAMS")
 [[ -n "$MIN_TEAM" ]] && ARGS+=(--min-team "$MIN_TEAM")
-[[ -n "$RB_DST_STACK" ]] && ARGS+=(--rb-dst-stack)
+if [[ -n "$RB_DST_STACK" ]]; then
+	case "${RB_DST_STACK,,}" in
+		1|true|yes|on|enable)
+			ARGS+=(--rb-dst-stack)
+			;;
+	esac
+fi
+
+# Tee all subsequent output (including Python logs) to the run log as well as stdout
+exec > >(tee -a "$RUN_LOG") 2>&1
 
 python -m src.cli "${ARGS[@]}"
