@@ -111,7 +111,7 @@ main() {
     # Aggregate
     if (( ${#SRC_UNF[@]} > 0 )); then
         log "Aggregating unfiltered lineups -> $QB_STACKS_OUT_UNFILTERED"
-        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_UNFILTERED" --column-name QB --no-extra-column)
+        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_UNFILTERED" --column-name QB)
         for s in "${SRC_UNF[@]}"; do
             cmd+=(--src "$s")
         done
@@ -121,13 +121,87 @@ main() {
     fi
     if (( ${#SRC_FIL[@]} > 0 )); then
         log "Aggregating filtered lineups -> $QB_STACKS_OUT_FILTERED"
-        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_FILTERED" --column-name QB --no-extra-column)
+        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_FILTERED" --column-name QB)
         for s in "${SRC_FIL[@]}"; do
             cmd+=(--src "$s")
         done
         "${cmd[@]}"
     else
         log "No filtered sources to aggregate"
+    fi
+
+    # Report per-QB counts from aggregated Summary and determine exit status
+    total_unf=0
+    total_fil=0
+
+    if [[ -f "$QB_STACKS_OUT_UNFILTERED" ]]; then
+        log "Summary (unfiltered):"
+        mapfile -t SUMM < <("$PYBIN" - "$QB_STACKS_OUT_UNFILTERED" QB << 'PY'
+import sys
+import pandas as pd
+path = sys.argv[1]
+col = sys.argv[2]
+try:
+    df = pd.read_excel(path, sheet_name='Summary')
+except Exception:
+    print('TOTAL 0')
+    raise SystemExit(0)
+if df.empty or col not in df.columns or 'Lineups' not in df.columns:
+    print('TOTAL 0')
+    raise SystemExit(0)
+for _, r in df.sort_values(by=['Lineups', col], ascending=[False, True]).iterrows():
+    name = str(r[col])
+    cnt = int(r['Lineups'])
+    print(f"QB {name}: {cnt}")
+print(f"TOTAL {int(df['Lineups'].sum())}")
+PY
+)
+        for line in "${SUMM[@]}"; do
+            if [[ "$line" == TOTAL* ]]; then
+                total_unf=${line#TOTAL }
+            else
+                log "$line"
+            fi
+        done
+        log "Total unfiltered lineups aggregated: $total_unf"
+    fi
+
+    if [[ -f "$QB_STACKS_OUT_FILTERED" ]]; then
+        log "Summary (filtered):"
+        mapfile -t SUMM2 < <("$PYBIN" - "$QB_STACKS_OUT_FILTERED" QB << 'PY'
+import sys
+import pandas as pd
+path = sys.argv[1]
+col = sys.argv[2]
+try:
+    df = pd.read_excel(path, sheet_name='Summary')
+except Exception:
+    print('TOTAL 0')
+    raise SystemExit(0)
+if df.empty or col not in df.columns or 'Lineups' not in df.columns:
+    print('TOTAL 0')
+    raise SystemExit(0)
+for _, r in df.sort_values(by=['Lineups', col], ascending=[False, True]).iterrows():
+    name = str(r[col])
+    cnt = int(r['Lineups'])
+    print(f"QB {name}: {cnt}")
+print(f"TOTAL {int(df['Lineups'].sum())}")
+PY
+)
+        for line in "${SUMM2[@]}"; do
+            if [[ "$line" == TOTAL* ]]; then
+                total_fil=${line#TOTAL }
+            else
+                log "$line"
+            fi
+        done
+        log "Total filtered lineups aggregated: $total_fil"
+    fi
+
+    total_all=$(( total_unf + total_fil ))
+    if (( total_all == 0 )); then
+        log "No feasible lineups found across all QBs. Exiting with non-zero status."
+        exit 1
     fi
 
     # Cleanup intermediates if requested

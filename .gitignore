@@ -1,5 +1,6 @@
 venv/
 output/
+data/
 *.csv
 *.xlsx
 *__pycache__/

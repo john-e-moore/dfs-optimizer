@@ -72,6 +72,7 @@ Additionally, CSV/JSON snapshots are written alongside the Excel files in the sa
   - allow_qb_vs_dst (default False)
   - stack: number of WR/TE paired with the QB’s team (default 1)
   - game_stack: minimum players from the same game (default 0)
+  - game_stack_target: specific matchup to satisfy when game_stack > 0 (normalized `AAA/BBB`; default unset)
 - Filters (optional, applied after generating lineups):
   - min_sum_projection (replaces min_player_projection)
   - min_sum_ownership, max_sum_ownership (on 0–1 scale before display)
@@ -102,6 +103,8 @@ python -m src.cli \
   --min-salary 45000 \
   --stack 1 \
   --game-stack 0 \
+  # Optional targeted game constraint (order-insensitive, normalized to AAA/BBB):
+  [--game-stack-target "BUF/NYJ"] \
   --out-unfiltered output/unfiltered_lineups.xlsx \
   --out-filtered output/filtered_lineups.xlsx \
   # Optional filters:
@@ -284,7 +287,7 @@ Below are copy-pasteable examples for typical strategies. Use either the CLI for
     - Game keys are normalized; any of `AAA/BBB`, `AAA@BBB`, or `AAA-BBB` is accepted (order-insensitive).
   - Examples:
     ```bash
-    # Run for all games discovered in projections (uses script defaults; run.sh defaults to GAME_STACK=5)
+    # Run for all games discovered in projections (uses script defaults; run.sh defaults to GAME_STACK=0)
     ./run_game_stacks.sh
 
     # Run for a specific set of games with a 4-player minimum per targeted game
@@ -294,6 +297,16 @@ Below are copy-pasteable examples for typical strategies. Use either the CLI for
     PROJECTIONS="/path/to/my.csv" GAME_STACKS_KEEP_INTERMEDIATE=0 ./run_game_stacks.sh
     ```
 
+### Script logs and exit codes
+
+- `./run_qb_stacks.sh` and `./run_game_stacks.sh` write detailed logs to the timestamped run directory:
+  - `output/<timestamp>/run_qb_stacks.log`
+  - `output/<timestamp>/run_game_stacks.log`
+- Each script prints per-entity counts from the aggregated `Summary` sheet and totals for both unfiltered and filtered outputs.
+- Exit codes:
+  - 0 if at least one lineup was aggregated across all iterations
+  - 1 if no feasible lineups were found (useful for CI or checks)
+
 ### Tips
-- `./run.sh` sets opinionated defaults (e.g., higher `MIN_SALARY`, nonzero `GAME_STACK`). Override via env vars as shown above if desired.
+- `./run.sh` sets opinionated defaults (e.g., higher `MIN_SALARY`; `GAME_STACK` defaults to 0). Override via env vars as shown above if desired.
 - When using default output names, both the CLI and scripts will place results under `output/<timestamp>/` automatically.
