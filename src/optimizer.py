@@ -222,6 +222,13 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     if params.max_product_ownership is not None:
         prob += pulp.lpSum(log_ownership[i] * x[i] for i in index) <= math.log(max(params.max_product_ownership, eps))
 
+    # Weighted ownership bounds (linear): sum((salary/50000) * ownership * x) bounds
+    weighted_coeff = {i: (players[i].salary / 50000.0) * players[i].ownership for i in index}
+    if params.min_weighted_ownership is not None:
+        prob += pulp.lpSum(weighted_coeff[i] * x[i] for i in index) >= float(params.min_weighted_ownership)
+    if params.max_weighted_ownership is not None:
+        prob += pulp.lpSum(weighted_coeff[i] * x[i] for i in index) <= float(params.max_weighted_ownership)
+
     # Exclusions by player name
     if params.excluded_players:
         for name in params.excluded_players:

@@ -42,6 +42,8 @@ class Parameters:
     max_sum_ownership: Optional[float] = None
     min_product_ownership: Optional[float] = None
     max_product_ownership: Optional[float] = None
+    min_weighted_ownership: Optional[float] = None
+    max_weighted_ownership: Optional[float] = None
     # Performance tuning
     solver_threads: Optional[int] = None
     solver_time_limit_s: Optional[int] = None
@@ -71,6 +73,12 @@ class Parameters:
             assert 0 <= self.max_product_ownership <= 1
         if self.min_product_ownership is not None and self.max_product_ownership is not None:
             assert self.min_product_ownership <= self.max_product_ownership
+        if self.min_weighted_ownership is not None:
+            assert 0 <= self.min_weighted_ownership <= 1
+        if self.max_weighted_ownership is not None:
+            assert 0 <= self.max_weighted_ownership <= 1
+        if self.min_weighted_ownership is not None and self.max_weighted_ownership is not None:
+            assert self.min_weighted_ownership <= self.max_weighted_ownership
         if self.solver_threads is not None:
             assert self.solver_threads > 0
         if self.solver_time_limit_s is not None:

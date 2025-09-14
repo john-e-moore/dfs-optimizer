@@ -17,6 +17,8 @@ set -euo pipefail
 : "${MAX_SUM_OWNERSHIP:=100}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
+: "${MIN_WEIGHTED_OWNERSHIP:=}"
+: "${MAX_WEIGHTED_OWNERSHIP:=}"
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
 : "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"
@@ -48,6 +50,8 @@ ARGS=(
 [[ -n "$MAX_SUM_OWNERSHIP" ]] && ARGS+=(--max-sum-ownership "$MAX_SUM_OWNERSHIP")
 [[ -n "$MIN_PRODUCT_OWNERSHIP" ]] && ARGS+=(--min-product-ownership "$MIN_PRODUCT_OWNERSHIP")
 [[ -n "$MAX_PRODUCT_OWNERSHIP" ]] && ARGS+=(--max-product-ownership "$MAX_PRODUCT_OWNERSHIP")
+[[ -n "$MIN_WEIGHTED_OWNERSHIP" ]] && ARGS+=(--min-weighted-ownership "$MIN_WEIGHTED_OWNERSHIP")
+[[ -n "$MAX_WEIGHTED_OWNERSHIP" ]] && ARGS+=(--max-weighted-ownership "$MAX_WEIGHTED_OWNERSHIP")
 [[ -n "$SOLVER_THREADS" ]] && ARGS+=(--solver-threads "$SOLVER_THREADS")
 [[ -n "$SOLVER_TIME_LIMIT_S" ]] && ARGS+=(--solver-time-limit-s "$SOLVER_TIME_LIMIT_S")
 [[ -n "$EXCLUDE_PLAYERS" ]] && ARGS+=(--exclude-players "$EXCLUDE_PLAYERS")

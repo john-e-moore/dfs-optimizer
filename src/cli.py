@@ -49,6 +49,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Fraction 0..1")
     p.add_argument("--min-product-ownership", type=float, default=None)
     p.add_argument("--max-product-ownership", type=float, default=None)
+    p.add_argument("--min-weighted-ownership", type=float, default=None,
+                   help="Sum over players of (salary/50000 * ownership); fraction 0..1")
+    p.add_argument("--max-weighted-ownership", type=float, default=None,
+                   help="Sum over players of (salary/50000 * ownership); fraction 0..1")
 
     # New pruning/constraints
     p.add_argument("--exclude-players", action="append", default=None,
@@ -149,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
     # Normalize ownership thresholds to fractions if user passed percents like 120.0
     min_sum_ownership = _normalize_ownership_fraction(args.min_sum_ownership)
     max_sum_ownership = _normalize_ownership_fraction(args.max_sum_ownership)
+    min_weighted_ownership = _normalize_ownership_fraction(args.min_weighted_ownership)
+    max_weighted_ownership = _normalize_ownership_fraction(args.max_weighted_ownership)
 
     params = Parameters(
         lineup_count=args.lineups,
@@ -162,6 +168,8 @@ def main(argv: list[str] | None = None) -> int:
         max_sum_ownership=max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
         max_product_ownership=args.max_product_ownership,
+        min_weighted_ownership=min_weighted_ownership,
+        max_weighted_ownership=max_weighted_ownership,
         excluded_players=excluded_players,
         included_players=included_players,
         excluded_teams=excluded_teams,
