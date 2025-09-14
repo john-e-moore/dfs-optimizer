@@ -12,7 +12,6 @@ from datetime import datetime
 from .data_loader import load_and_clean
 from .models import players_from_df, Parameters
 from .optimizer import generate_lineups, lineups_to_dataframe
-from .filters import filter_lineups
 from .reporting import export_workbook
 from .logging_utils import setup_logger
 from .observability import (
