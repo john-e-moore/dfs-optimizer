@@ -196,7 +196,10 @@ def main(argv: list[str] | None = None) -> int:
         elapsed_str = f"{mins}m {secs}s"
     else:
         elapsed_str = f"{elapsed:.2f}s"
-    logger.info("Completed. Lineups=%d Time=%s", len(df), elapsed_str)
+    if len(df) == 0:
+        logger.info("Completed with 0 lineups. Constraints likely infeasible for current pool. Time=%s", elapsed_str)
+    else:
+        logger.info("Completed. Lineups=%d Time=%s", len(df), elapsed_str)
     return 0
 
 
