@@ -11,6 +11,8 @@
   - `--max-sum-ownership` (float 0..1): Maximum sum of player ownership fractions per lineup.
   - `--min-product-ownership` (float 0..1): Minimum product of player ownership fractions per lineup.
   - `--max-product-ownership` (float 0..1): Maximum product of player ownership fractions per lineup.
+  - `--min-weighted-ownership` (float 0..1): Minimum weighted ownership per lineup.
+  - `--max-weighted-ownership` (float 0..1): Maximum weighted ownership per lineup.
 - Deprecate and remove `--min-player-projection` (replaced by `--min-sum-projection`).
 - Remove any post-generation filtering logic and dual “filtered/unfiltered” outputs.
 
@@ -24,6 +26,9 @@
   - if `--min-product-ownership` provided: Π O(i ∈ L) ≥ value
   - if `--max-product-ownership` provided: Π O(i ∈ L) ≤ value
   - Note: if the solver requires linearization, apply log transform: Σ log O(i ∈ L) ≥ log(value) or ≤ log(value), skipping players with O(i)=0 or handling via small epsilon.
+- Weighted Ownership (linear): define `W(i) = (salary(i) / 50000) * O(i)` and `WO(L) = Σ W(i ∈ L)`.
+  - if `--min-weighted-ownership` provided: enforce Σ (salary(i)/50000 * O(i) * x_i) ≥ value
+  - if `--max-weighted-ownership` provided: enforce Σ (salary(i)/50000 * O(i) * x_i) ≤ value
 
 ### Data Requirements
 - Projections and ownership fractions must be available per player prior to optimization.
@@ -42,7 +47,7 @@
 ### Behavior & Edge Cases
 - Constraints are enforced in the optimization model; no post-processing filters.
 - If constraint set is infeasible, return zero lineups and log a concise infeasibility message.
-- Validate inputs: ownership and product thresholds must be within [0,1]; projection thresholds must be ≥ 0.
+- Validate inputs: ownership, product, and weighted thresholds must be within [0,1]; projection thresholds must be ≥ 0.
 - If both min and max variants of the same metric are provided, validate min ≤ max.
 
 ### Acceptance Criteria

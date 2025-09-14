@@ -82,6 +82,24 @@
 - Add a short example command in `README.md` for quick verification:
   - `python -m src.cli --lineups 200 --min-sum-projection 120 --max-sum-ownership 4.2`
 
+### 10) Weighted ownership constraint
+- Add CLI flags to `src/cli.py`:
+  - `--min-weighted-ownership` and `--max-weighted-ownership` (floats in 0..1 range)
+- Extend `Parameters` in `src/models.py`:
+  - Add `min_weighted_ownership: Optional[float]` and `max_weighted_ownership: Optional[float]`
+  - Validation: thresholds in [0,1]; if both set, ensure min ≤ max
+- Implement in `src/optimizer.py`:
+  - Define `weighted_ownership_coeff[i] = (salary(i)/50000.0) * ownership(i)`
+  - Add linear constraints:
+    - if provided: Σ weighted_ownership_coeff[i] * x[i] ≥ min_weighted_ownership
+    - if provided: Σ weighted_ownership_coeff[i] * x[i] ≤ max_weighted_ownership
+- Tests:
+  - Unit tests verifying feasibility/infeasibility at extreme thresholds
+  - Combined with other constraints to ensure interactions are stable
+- Docs:
+  - Update README flags and description of constraints
+  - Note that weighted ownership is linear and uses salary-scaled ownership
+
 ### Acceptance (matches spec)
 - Only valid lineups are produced; no post-run filtering.
 - Only `lineups.json` and `lineups.xlsx` are written per run.

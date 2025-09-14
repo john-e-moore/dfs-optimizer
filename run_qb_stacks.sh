@@ -7,8 +7,7 @@ set -euo pipefail
 # Defaults (can be overridden by env)
 : "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
 : "${QB_STACKS_QB_LIST:=}"
-: "${QB_STACKS_OUT_UNFILTERED:=output/qb_stacks_unfiltered.xlsx}"
-: "${QB_STACKS_OUT_FILTERED:=output/qb_stacks_filtered.xlsx}"
+: "${QB_STACKS_OUT:=output/qb_stacks.xlsx}"
 : "${QB_STACKS_KEEP_INTERMEDIATE:=1}"
 : "${QB_STACKS_TIMESTAMP:=}"
 
@@ -25,12 +24,9 @@ mkdir -p "$BASE_OUT_DIR"
 STACKS_LOG="${BASE_OUT_DIR}/run_qb_stacks.log"
 exec > >(tee -a "$STACKS_LOG") 2>&1
 
-# If using default aggregate output paths, place them under the timestamped directory
-if [[ "$QB_STACKS_OUT_UNFILTERED" == "output/qb_stacks_unfiltered.xlsx" ]]; then
-    QB_STACKS_OUT_UNFILTERED="${BASE_OUT_DIR}/qb_stacks_unfiltered.xlsx"
-fi
-if [[ "$QB_STACKS_OUT_FILTERED" == "output/qb_stacks_filtered.xlsx" ]]; then
-    QB_STACKS_OUT_FILTERED="${BASE_OUT_DIR}/qb_stacks_filtered.xlsx"
+# If using default aggregate output path, place it under the timestamped directory
+if [[ "$QB_STACKS_OUT" == "output/qb_stacks.xlsx" ]]; then
+    QB_STACKS_OUT="${BASE_OUT_DIR}/qb_stacks.xlsx"
 fi
 
 # Pick Python interpreter (prefer venv)
@@ -82,123 +78,55 @@ main() {
     log "Found ${#QBS[@]} quarterbacks"
 
     # Collect sources for aggregation
-    declare -a SRC_UNF=()
-    declare -a SRC_FIL=()
+    declare -a SRC_ALL=()
 
     for qb in "${QBS[@]}"; do
         [[ -z "$qb" ]] && continue
         token="$(sanitize "$qb")"
         run_dir="${BASE_OUT_DIR}/qb_stacks/intermediate/${token}"
-        out_unf="${run_dir}/unfiltered_lineups.xlsx"
-        out_fil="${run_dir}/filtered_lineups.xlsx"
         mkdir -p "$run_dir"
         log "Running for QB: $qb"
-        # Invoke run.sh with per-run outputs and include the QB
-        INCLUDE_PLAYERS="$qb" OUT_UNFILTERED="$out_unf" OUT_FILTERED="$out_fil" ./run.sh || true
-        # Append to sources if files exist
-        if [[ -f "$out_unf" ]]; then
-            SRC_UNF+=("${out_unf}::${qb}")
+        # Invoke run.sh with per-run outdir and include the QB
+        INCLUDE_PLAYERS="$qb" OUTDIR="$run_dir" ./run.sh || true
+        # Determine the timestamped child run directory
+        latest_child="$(ls -1dt "$run_dir"/*/ 2>/dev/null | head -n1 | sed 's:/*$::')"
+        out_xlsx="${latest_child}/lineups.xlsx"
+        # Append to sources if file exists
+        if [[ -n "$latest_child" && -f "$out_xlsx" ]]; then
+            SRC_ALL+=("${out_xlsx}::${qb}")
         else
-            log "Warning: missing unfiltered output for $qb at $out_unf"
-        fi
-        if [[ -f "$out_fil" ]]; then
-            SRC_FIL+=("${out_fil}::${qb}")
-        else
-            log "Warning: missing filtered output for $qb at $out_fil"
+            log "Warning: missing output for $qb at $out_xlsx"
         fi
     done
 
     # Aggregate
-    if (( ${#SRC_UNF[@]} > 0 )); then
-        log "Aggregating unfiltered lineups -> $QB_STACKS_OUT_UNFILTERED"
-        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_UNFILTERED" --column-name QB)
-        for s in "${SRC_UNF[@]}"; do
+    if (( ${#SRC_ALL[@]} > 0 )); then
+        log "Aggregating lineups -> $QB_STACKS_OUT"
+        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT" --column-name QB)
+        for s in "${SRC_ALL[@]}"; do
             cmd+=(--src "$s")
         done
         "${cmd[@]}"
     else
-        log "No unfiltered sources to aggregate"
-    fi
-    if (( ${#SRC_FIL[@]} > 0 )); then
-        log "Aggregating filtered lineups -> $QB_STACKS_OUT_FILTERED"
-        cmd=("$PYBIN" tools/aggregate_lineups.py --out "$QB_STACKS_OUT_FILTERED" --column-name QB)
-        for s in "${SRC_FIL[@]}"; do
-            cmd+=(--src "$s")
-        done
-        "${cmd[@]}"
-    else
-        log "No filtered sources to aggregate"
+        log "No sources to aggregate"
     fi
 
-    # Report per-QB counts from aggregated Summary and determine exit status
-    total_unf=0
-    total_fil=0
-
-    if [[ -f "$QB_STACKS_OUT_UNFILTERED" ]]; then
-        log "Summary (unfiltered):"
-        mapfile -t SUMM < <("$PYBIN" - "$QB_STACKS_OUT_UNFILTERED" QB << 'PY'
-import sys
-import pandas as pd
+    # Determine total by reading Lineups sheet row count
+    total_all=0
+    if [[ -f "$QB_STACKS_OUT" ]]; then
+        total_all="$($PYBIN - "$QB_STACKS_OUT" << 'PY'
+import sys, pandas as pd
 path = sys.argv[1]
-col = sys.argv[2]
 try:
-    df = pd.read_excel(path, sheet_name='Summary')
+    df = pd.read_excel(path, sheet_name='Lineups')
+    print(len(df))
 except Exception:
-    print('TOTAL 0')
-    raise SystemExit(0)
-if df.empty or col not in df.columns or 'Lineups' not in df.columns:
-    print('TOTAL 0')
-    raise SystemExit(0)
-for _, r in df.sort_values(by=['Lineups', col], ascending=[False, True]).iterrows():
-    name = str(r[col])
-    cnt = int(r['Lineups'])
-    print(f"QB {name}: {cnt}")
-print(f"TOTAL {int(df['Lineups'].sum())}")
+    print(0)
 PY
-)
-        for line in "${SUMM[@]}"; do
-            if [[ "$line" == TOTAL* ]]; then
-                total_unf=${line#TOTAL }
-            else
-                log "$line"
-            fi
-        done
-        log "Total unfiltered lineups aggregated: $total_unf"
+)"
+        log "Total lineups aggregated: $total_all"
     fi
 
-    if [[ -f "$QB_STACKS_OUT_FILTERED" ]]; then
-        log "Summary (filtered):"
-        mapfile -t SUMM2 < <("$PYBIN" - "$QB_STACKS_OUT_FILTERED" QB << 'PY'
-import sys
-import pandas as pd
-path = sys.argv[1]
-col = sys.argv[2]
-try:
-    df = pd.read_excel(path, sheet_name='Summary')
-except Exception:
-    print('TOTAL 0')
-    raise SystemExit(0)
-if df.empty or col not in df.columns or 'Lineups' not in df.columns:
-    print('TOTAL 0')
-    raise SystemExit(0)
-for _, r in df.sort_values(by=['Lineups', col], ascending=[False, True]).iterrows():
-    name = str(r[col])
-    cnt = int(r['Lineups'])
-    print(f"QB {name}: {cnt}")
-print(f"TOTAL {int(df['Lineups'].sum())}")
-PY
-)
-        for line in "${SUMM2[@]}"; do
-            if [[ "$line" == TOTAL* ]]; then
-                total_fil=${line#TOTAL }
-            else
-                log "$line"
-            fi
-        done
-        log "Total filtered lineups aggregated: $total_fil"
-    fi
-
-    total_all=$(( total_unf + total_fil ))
     if (( total_all == 0 )); then
         log "No feasible lineups found across all QBs. Exiting with non-zero status."
         exit 1
