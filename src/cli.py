@@ -63,8 +63,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--rb-dst-stack", action="store_true",
                    help="Require an RB from the same team as the selected DST in each lineup")
 
-    p.add_argument("--out-unfiltered", type=str, default="output/unfiltered_lineups.xlsx")
-    p.add_argument("--out-filtered", type=str, default="output/filtered_lineups.xlsx")
+    p.add_argument("--outdir", type=str, default="output/",
+                   help="Directory to write timestamped run outputs")
     return p
 
 
@@ -115,24 +115,12 @@ def _normalize_ownership_fraction(value: float | None) -> float | None:
     return v
 
 
-def _compute_timestamped_paths(default_unfiltered: str, default_filtered: str) -> tuple[str, str]:
-    # If user left defaults, place outputs under timestamp-named subfolder; otherwise honor custom paths
+def _compute_run_dir(outdir: str) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    def under_timestamp(path: str) -> str:
-        d = os.path.dirname(path)
-        b = os.path.basename(path)
-        d = d or "."
-        out_dir = os.path.join(d, timestamp)
-        ensure_dir(os.path.join(out_dir, "dummy"))  # create directory
-        return os.path.join(out_dir, b)
-
-    u = default_unfiltered
-    f = default_filtered
-    if default_unfiltered == "output/unfiltered_lineups.xlsx":
-        u = under_timestamp(default_unfiltered)
-    if default_filtered == "output/filtered_lineups.xlsx":
-        f = under_timestamp(default_filtered)
-    return u, f
+    base = outdir or "output/"
+    run_dir = os.path.join(base, timestamp)
+    ensure_dir(os.path.join(run_dir, "dummy"))
+    return run_dir
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -186,9 +174,8 @@ def main(argv: list[str] | None = None) -> int:
     params.validate()
 
     cleaned = load_and_clean(args.projections)
-    # Determine output paths (timestamped if defaults) and run directory
-    out_unfiltered, out_filtered = _compute_timestamped_paths(args.out_unfiltered, args.out_filtered)
-    run_dir = os.path.dirname(out_unfiltered) or "."
+    # Determine run directory
+    run_dir = _compute_run_dir(args.outdir)
     # Save early snapshots to the run directory as well
     snapshot_cleaned_projections(cleaned, path=os.path.join(run_dir, "cleaned_projections.csv"))
     players = players_from_df(cleaned)
@@ -198,15 +185,10 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.time()
     lineups = generate_lineups(players, params)
     elapsed = time.time() - t0
-    unfiltered_df = lineups_to_dataframe(lineups)
-    snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups_unfiltered.json"))
-    export_workbook(cleaned, params, unfiltered_df, out_unfiltered)
-
-    fr = filter_lineups(lineups, params)
-    filtered_df = lineups_to_dataframe(fr.lineups)
-    snapshot_lineups(fr.lineups, path=os.path.join(run_dir, "lineups_filtered.json"))
+    df = lineups_to_dataframe(lineups)
+    snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
     snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
-    export_workbook(cleaned, params, filtered_df, out_filtered)
+    export_workbook(cleaned, params, df, os.path.join(run_dir, "lineups.xlsx"))
 
     # Human-friendly timing
     if elapsed >= 120:
@@ -215,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         elapsed_str = f"{mins}m {secs}s"
     else:
         elapsed_str = f"{elapsed:.2f}s"
-    logger.info("Completed. Unfiltered=%d Filtered=%d Dropped=%d Time=%s", len(unfiltered_df), len(filtered_df), fr.dropped, elapsed_str)
+    logger.info("Completed. Lineups=%d Time=%s", len(df), elapsed_str)
     return 0
 
 
