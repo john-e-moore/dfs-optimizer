@@ -36,9 +36,8 @@ class Parameters:
     excluded_teams: Set[str] = field(default_factory=set)
     min_players_by_team: Dict[str, int] = field(default_factory=dict)
     rb_dst_stack: bool = False
-    # Lineup-level projection filter (replaces per-player projection)
+    # Lineup-level projection constraint
     min_sum_projection: Optional[float] = None
-    min_player_projection: Optional[float] = None
     min_sum_ownership: Optional[float] = None
     max_sum_ownership: Optional[float] = None
     min_product_ownership: Optional[float] = None
@@ -58,8 +57,18 @@ class Parameters:
         for k, v in self.min_players_by_team.items():
             assert isinstance(k, str) and k, "Team key must be non-empty string"
             assert isinstance(v, int) and v >= 0, "Minimum players by team must be non-negative integer"
+        if self.min_sum_projection is not None:
+            assert self.min_sum_projection >= 0
+        if self.min_sum_ownership is not None:
+            assert 0 <= self.min_sum_ownership <= 100, "Ownership may be fraction or percent; normalized upstream"
+        if self.max_sum_ownership is not None:
+            assert 0 <= self.max_sum_ownership <= 100, "Ownership may be fraction or percent; normalized upstream"
         if self.min_sum_ownership is not None and self.max_sum_ownership is not None:
             assert self.min_sum_ownership <= self.max_sum_ownership
+        if self.min_product_ownership is not None:
+            assert 0 <= self.min_product_ownership <= 1
+        if self.max_product_ownership is not None:
+            assert 0 <= self.max_product_ownership <= 1
         if self.min_product_ownership is not None and self.max_product_ownership is not None:
             assert self.min_product_ownership <= self.max_product_ownership
         if self.solver_threads is not None:

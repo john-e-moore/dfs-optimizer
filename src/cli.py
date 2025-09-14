@@ -41,9 +41,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     # Performance
     p.add_argument("--solver-threads", type=int, default=None, help="Number of solver threads")
     p.add_argument("--solver-time-limit-s", type=int, default=None, help="Solver time limit in seconds")
-    # Filters
-    # Deprecated (still accepted): --min-player-projection
-    p.add_argument("--min-player-projection", type=float, default=None, help=argparse.SUPPRESS)
+    # Filters / constraints
     p.add_argument("--min-sum-projection", type=float, default=None,
                    help="Minimum total projection per lineup (replaces --min-player-projection)")
     p.add_argument("--min-sum-ownership", type=float, default=None,
@@ -140,12 +138,7 @@ def _compute_timestamped_paths(default_unfiltered: str, default_filtered: str) -
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
 
-    # Deprecation mapping for --min-player-projection -> --min-sum-projection
     min_sum_projection = args.min_sum_projection
-    # Note: argparse lowercases destination name, maintain the exact spelling used above
-    if min_sum_projection is None and getattr(args, "min_player_projection", None) is not None:
-        print("Warning: --min-player-projection is deprecated; use --min-sum-projection instead", file=sys.stderr)
-        min_sum_projection = getattr(args, "min_player_projection")
 
     # Normalize list-like arguments
     excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
@@ -178,7 +171,6 @@ def main(argv: list[str] | None = None) -> int:
         game_stack=args.game_stack,
         game_stack_target=game_stack_target,
         min_sum_projection=min_sum_projection,
-        min_player_projection=args.min_player_projection,
         min_sum_ownership=min_sum_ownership,
         max_sum_ownership=max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
