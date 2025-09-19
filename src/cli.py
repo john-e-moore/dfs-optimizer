@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 
 from .data_loader import load_and_clean
+from .sabersim_loader import find_latest_sabersim_xlsx, load_and_clean_sabersim_xlsx
 from .models import players_from_df, Parameters
 from .optimizer import generate_lineups, lineups_to_dataframe
 from .reporting import export_workbook
@@ -30,6 +31,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--projections", type=str, required=False,
                    default="data/DraftKings NFL DFS Projections -- Main Slate.csv",
                    help="Path to projections CSV")
+    p.add_argument("-ss", "--sabersim", action="store_true",
+                   help="Load from latest data/NFL_*.xlsx SaberSim workbook instead of CSV projections")
     p.add_argument("--lineups", type=int, default=5000)
     p.add_argument("--min-salary", type=int, default=45000)
     p.add_argument("--allow-qb-vs-dst", action="store_true")
@@ -180,7 +183,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     params.validate()
 
-    cleaned = load_and_clean(args.projections)
+    # Load projections either from CSV (default) or SaberSim Excel when -ss is set
+    if args.sabersim:
+        try:
+            xlsx_path = find_latest_sabersim_xlsx("data/", prefix="NFL_")
+        except Exception as e:
+            raise SystemExit(str(e))
+        cleaned = load_and_clean_sabersim_xlsx(xlsx_path)
+    else:
+        cleaned = load_and_clean(args.projections)
     # Determine run directory
     run_dir = _compute_run_dir(args.outdir)
     # Save early snapshots to the run directory as well
