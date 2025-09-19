@@ -31,8 +31,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--projections", type=str, required=False,
                    default="data/DraftKings NFL DFS Projections -- Main Slate.csv",
                    help="Path to projections CSV")
-    p.add_argument("-ss", "--sabersim", action="store_true",
-                   help="Load from latest data/NFL_*.xlsx SaberSim workbook instead of CSV projections")
+    p.add_argument("--ss", "--sabersim", dest="sabersim", action="store_true",
+                   help="Load from latest data/NFL_*.csv SaberSim file instead of default projections")
     p.add_argument("--lineups", type=int, default=5000)
     p.add_argument("--min-salary", type=int, default=45000)
     p.add_argument("--allow-qb-vs-dst", action="store_true")
