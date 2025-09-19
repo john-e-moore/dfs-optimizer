@@ -32,22 +32,33 @@ def load_dk_entries(csv_path: str = "data/DKEntries.csv") -> pd.DataFrame:
     """
     rows: List[List[str]] = []
     header: Optional[List[str]] = None
+    start_idx: Optional[int] = None
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
-        found = False
         for parts in reader:
-            # Identify header row (it may be shifted; we check that the first 4 columns match)
-            if not found and len(parts) >= 4 and [p.strip() for p in parts[:4]] == DK_ENTRIES_HEADER_PREFIX[:4]:
-                header = [p.strip() for p in parts[: len(DK_ENTRIES_HEADER_PREFIX)]]
-                found = True
-                continue
-            if not found:
-                continue
             if not parts:
                 continue
-            # Pad/truncate to expected header length
-            padded = (parts + [""] * len(DK_ENTRIES_HEADER_PREFIX))[: len(DK_ENTRIES_HEADER_PREFIX)]
-            rows.append([p.strip() for p in padded])
+            # Identify header slice anywhere in the row
+            if header is None:
+                n = len(DK_ENTRIES_HEADER_PREFIX)
+                for j in range(0, max(0, len(parts) - n + 1)):
+                    window = [p.strip() for p in parts[j : j + n]]
+                    if window == DK_ENTRIES_HEADER_PREFIX:
+                        header = window
+                        start_idx = j
+                        break
+                # If we just found header in this row, skip to next row for data
+                if header is not None:
+                    continue
+                else:
+                    # Not a header row; continue scanning
+                    continue
+            # Collect data rows aligned to header start
+            assert start_idx is not None
+            # Some rows may be shorter; pad
+            segment = parts[start_idx : start_idx + len(DK_ENTRIES_HEADER_PREFIX)]
+            segment = (segment + [""] * len(DK_ENTRIES_HEADER_PREFIX))[: len(DK_ENTRIES_HEADER_PREFIX)]
+            rows.append([p.strip() for p in segment])
 
     if not header:
         # If header not found, return empty DataFrame with expected columns
