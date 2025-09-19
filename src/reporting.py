@@ -7,6 +7,7 @@ import pandas as pd
 
 from .models import Parameters
 from .io_utils import write_excel_with_tabs
+from .dk_upload import load_dk_entries, format_lineups_for_dk
 
 
 def build_parameters_df(params: Parameters) -> pd.DataFrame:
@@ -47,7 +48,14 @@ def build_parameters_df(params: Parameters) -> pd.DataFrame:
 def export_workbook(projections_df: pd.DataFrame, params: Parameters, lineups_df: pd.DataFrame, path: str) -> None:
     params_df = build_parameters_df(params)
     players_df = build_players_exposure_df(lineups_df, projections_df)
-    write_excel_with_tabs(projections_df, params_df, lineups_df, path, players_df=players_df)
+    try:
+        dk_entries = load_dk_entries()
+        dk_lineups_df = format_lineups_for_dk(lineups_df, projections_df, dk_entries)
+        extra_tabs = {"DK Lineups": dk_lineups_df}
+    except Exception:
+        # Be resilient; if anything fails in DK mapping, proceed without the extra tab
+        extra_tabs = None  # type: ignore
+    write_excel_with_tabs(projections_df, params_df, lineups_df, path, players_df=players_df, extra_tabs=extra_tabs)
 
 
 def build_players_exposure_df(lineups_df: pd.DataFrame, projections_df: pd.DataFrame) -> pd.DataFrame:
