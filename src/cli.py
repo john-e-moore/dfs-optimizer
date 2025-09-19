@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 
 from .data_loader import load_and_clean
-from .sabersim_loader import find_latest_sabersim_xlsx, load_and_clean_sabersim_xlsx
+from .sabersim_loader import find_latest_sabersim_csv, load_and_clean_sabersim_csv
 from .models import players_from_df, Parameters
 from .optimizer import generate_lineups, lineups_to_dataframe
 from .reporting import export_workbook
@@ -186,10 +186,10 @@ def main(argv: list[str] | None = None) -> int:
     # Load projections either from CSV (default) or SaberSim Excel when -ss is set
     if args.sabersim:
         try:
-            xlsx_path = find_latest_sabersim_xlsx("data/", prefix="NFL_")
+            xlsx_path = find_latest_sabersim_csv("data/", prefix="NFL_")
         except Exception as e:
             raise SystemExit(str(e))
-        cleaned = load_and_clean_sabersim_xlsx(xlsx_path)
+        cleaned = load_and_clean_sabersim_csv(xlsx_path)
     else:
         cleaned = load_and_clean(args.projections)
     # Determine run directory

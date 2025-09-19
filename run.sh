@@ -24,6 +24,7 @@ set -euo pipefail
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
 : "${RB_DST_STACK:=}"
+: "${SABERSIM:=}"
 : "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
@@ -66,8 +67,17 @@ if [[ -n "$RB_DST_STACK" ]]; then
 	esac
 fi
 
-# Run optimizer
-python -m src.cli "${ARGS[@]}"
+# SaberSim toggle via env var
+if [[ -n "$SABERSIM" ]]; then
+	case "${SABERSIM,,}" in
+		1|true|yes|on|enable)
+			ARGS+=(-ss)
+			;;
+	esac
+fi
+
+# Run optimizer (forward any additional CLI flags passed to this script)
+python -m src.cli "${ARGS[@]}" "$@"
 
 # Discover the latest run directory under OUTDIR and echo it for callers
 if [[ -d "$OUTDIR" ]]; then

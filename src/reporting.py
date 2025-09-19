@@ -7,7 +7,11 @@ import pandas as pd
 
 from .models import Parameters
 from .io_utils import write_excel_with_tabs
-from .dk_upload import load_dk_entries, format_lineups_for_dk
+from .dk_upload import (
+    load_dk_entries,
+    format_lineups_for_dk,
+    build_name_to_id_map_from_projections,
+)
 
 
 def build_parameters_df(params: Parameters) -> pd.DataFrame:
@@ -49,8 +53,17 @@ def export_workbook(projections_df: pd.DataFrame, params: Parameters, lineups_df
     params_df = build_parameters_df(params)
     players_df = build_players_exposure_df(lineups_df, projections_df)
     try:
-        dk_entries = load_dk_entries()
-        dk_lineups_df = format_lineups_for_dk(lineups_df, projections_df, dk_entries)
+        name_to_id_override = None
+        if "DFS ID" in projections_df.columns:
+            name_to_id_override = build_name_to_id_map_from_projections(projections_df)
+        # Load DK entries unless we have a complete override
+        dk_entries = load_dk_entries() if name_to_id_override is None else pd.DataFrame()
+        dk_lineups_df = format_lineups_for_dk(
+            lineups_df,
+            projections_df,
+            dk_entries,
+            name_to_id_override=name_to_id_override,
+        )
         extra_tabs = {"DK Lineups": dk_lineups_df}
     except Exception:
         # Be resilient; if anything fails in DK mapping, proceed without the extra tab

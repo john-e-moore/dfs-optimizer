@@ -12,17 +12,17 @@ from .data_loader import normalize_ownership
 logger = setup_logger(__name__)
 
 
-def find_latest_sabersim_xlsx(directory: str = "data/", prefix: str = "NFL_") -> str:
-    pattern = os.path.join(directory, f"{prefix}*.xlsx")
+def find_latest_sabersim_csv(directory: str = "data/", prefix: str = "NFL_") -> str:
+    pattern = os.path.join(directory, f"{prefix}*.csv")
     candidates = glob.glob(pattern)
     candidates = [p for p in candidates if os.path.isfile(p)]
     if not candidates:
         raise FileNotFoundError(
-            f"No SaberSim Excel files found matching '{pattern}'. Place an '{prefix}*.xlsx' under {directory}."
+            f"No SaberSim CSV files found matching '{pattern}'. Place an '{prefix}*.csv' under {directory}."
         )
     candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
     latest = candidates[0]
-    logger.info("Using SaberSim workbook: %s", latest)
+    logger.info("Using SaberSim CSV: %s", latest)
     return latest
 
 
@@ -34,9 +34,9 @@ def _coerce_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
-def load_and_clean_sabersim_xlsx(path: str) -> pd.DataFrame:
+def load_and_clean_sabersim_csv(path: str) -> pd.DataFrame:
     assert os.path.exists(path), f"Input file not found: {path}"
-    df = pd.read_excel(path)
+    df = pd.read_csv(path)
     df.columns = _normalize_headers(list(df.columns))
 
     # Column aliases
