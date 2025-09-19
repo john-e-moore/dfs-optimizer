@@ -12,7 +12,6 @@ from datetime import datetime
 from .data_loader import load_and_clean
 from .models import players_from_df, Parameters
 from .optimizer import generate_lineups, lineups_to_dataframe
-from .filters import filter_lineups
 from .reporting import export_workbook
 from .logging_utils import setup_logger
 from .observability import (
@@ -41,9 +40,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     # Performance
     p.add_argument("--solver-threads", type=int, default=None, help="Number of solver threads")
     p.add_argument("--solver-time-limit-s", type=int, default=None, help="Solver time limit in seconds")
-    # Filters
-    # Deprecated (still accepted): --min-player-projection
-    p.add_argument("--min-player-projection", type=float, default=None, help=argparse.SUPPRESS)
+    # Filters / constraints
     p.add_argument("--min-sum-projection", type=float, default=None,
                    help="Minimum total projection per lineup (replaces --min-player-projection)")
     p.add_argument("--min-sum-ownership", type=float, default=None,
@@ -52,6 +49,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Fraction 0..1")
     p.add_argument("--min-product-ownership", type=float, default=None)
     p.add_argument("--max-product-ownership", type=float, default=None)
+    p.add_argument("--min-weighted-ownership", type=float, default=None,
+                   help="Sum over players of (salary/50000 * ownership); fraction 0..1")
+    p.add_argument("--max-weighted-ownership", type=float, default=None,
+                   help="Sum over players of (salary/50000 * ownership); fraction 0..1")
 
     # New pruning/constraints
     p.add_argument("--exclude-players", action="append", default=None,
@@ -65,8 +66,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--rb-dst-stack", action="store_true",
                    help="Require an RB from the same team as the selected DST in each lineup")
 
-    p.add_argument("--out-unfiltered", type=str, default="output/unfiltered_lineups.xlsx")
-    p.add_argument("--out-filtered", type=str, default="output/filtered_lineups.xlsx")
+    p.add_argument("--outdir", type=str, default="output/",
+                   help="Directory to write timestamped run outputs")
     return p
 
 
@@ -117,35 +118,18 @@ def _normalize_ownership_fraction(value: float | None) -> float | None:
     return v
 
 
-def _compute_timestamped_paths(default_unfiltered: str, default_filtered: str) -> tuple[str, str]:
-    # If user left defaults, place outputs under timestamp-named subfolder; otherwise honor custom paths
+def _compute_run_dir(outdir: str) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    def under_timestamp(path: str) -> str:
-        d = os.path.dirname(path)
-        b = os.path.basename(path)
-        d = d or "."
-        out_dir = os.path.join(d, timestamp)
-        ensure_dir(os.path.join(out_dir, "dummy"))  # create directory
-        return os.path.join(out_dir, b)
-
-    u = default_unfiltered
-    f = default_filtered
-    if default_unfiltered == "output/unfiltered_lineups.xlsx":
-        u = under_timestamp(default_unfiltered)
-    if default_filtered == "output/filtered_lineups.xlsx":
-        f = under_timestamp(default_filtered)
-    return u, f
+    base = outdir or "output/"
+    run_dir = os.path.join(base, timestamp)
+    ensure_dir(os.path.join(run_dir, "dummy"))
+    return run_dir
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
 
-    # Deprecation mapping for --min-player-projection -> --min-sum-projection
     min_sum_projection = args.min_sum_projection
-    # Note: argparse lowercases destination name, maintain the exact spelling used above
-    if min_sum_projection is None and getattr(args, "min_player_projection", None) is not None:
-        print("Warning: --min-player-projection is deprecated; use --min-sum-projection instead", file=sys.stderr)
-        min_sum_projection = getattr(args, "min_player_projection")
 
     # Normalize list-like arguments
     excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
@@ -169,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
     # Normalize ownership thresholds to fractions if user passed percents like 120.0
     min_sum_ownership = _normalize_ownership_fraction(args.min_sum_ownership)
     max_sum_ownership = _normalize_ownership_fraction(args.max_sum_ownership)
+    min_weighted_ownership = _normalize_ownership_fraction(args.min_weighted_ownership)
+    max_weighted_ownership = _normalize_ownership_fraction(args.max_weighted_ownership)
 
     params = Parameters(
         lineup_count=args.lineups,
@@ -178,11 +164,12 @@ def main(argv: list[str] | None = None) -> int:
         game_stack=args.game_stack,
         game_stack_target=game_stack_target,
         min_sum_projection=min_sum_projection,
-        min_player_projection=args.min_player_projection,
         min_sum_ownership=min_sum_ownership,
         max_sum_ownership=max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
         max_product_ownership=args.max_product_ownership,
+        min_weighted_ownership=min_weighted_ownership,
+        max_weighted_ownership=max_weighted_ownership,
         excluded_players=excluded_players,
         included_players=included_players,
         excluded_teams=excluded_teams,
@@ -194,9 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     params.validate()
 
     cleaned = load_and_clean(args.projections)
-    # Determine output paths (timestamped if defaults) and run directory
-    out_unfiltered, out_filtered = _compute_timestamped_paths(args.out_unfiltered, args.out_filtered)
-    run_dir = os.path.dirname(out_unfiltered) or "."
+    # Determine run directory
+    run_dir = _compute_run_dir(args.outdir)
     # Save early snapshots to the run directory as well
     snapshot_cleaned_projections(cleaned, path=os.path.join(run_dir, "cleaned_projections.csv"))
     players = players_from_df(cleaned)
@@ -206,15 +192,10 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.time()
     lineups = generate_lineups(players, params)
     elapsed = time.time() - t0
-    unfiltered_df = lineups_to_dataframe(lineups)
-    snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups_unfiltered.json"))
-    export_workbook(cleaned, params, unfiltered_df, out_unfiltered)
-
-    fr = filter_lineups(lineups, params)
-    filtered_df = lineups_to_dataframe(fr.lineups)
-    snapshot_lineups(fr.lineups, path=os.path.join(run_dir, "lineups_filtered.json"))
+    df = lineups_to_dataframe(lineups)
+    snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
     snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
-    export_workbook(cleaned, params, filtered_df, out_filtered)
+    export_workbook(cleaned, params, df, os.path.join(run_dir, "lineups.xlsx"))
 
     # Human-friendly timing
     if elapsed >= 120:
@@ -223,7 +204,10 @@ def main(argv: list[str] | None = None) -> int:
         elapsed_str = f"{mins}m {secs}s"
     else:
         elapsed_str = f"{elapsed:.2f}s"
-    logger.info("Completed. Unfiltered=%d Filtered=%d Dropped=%d Time=%s", len(unfiltered_df), len(filtered_df), fr.dropped, elapsed_str)
+    if len(df) == 0:
+        logger.info("Completed with 0 lineups. Constraints likely infeasible for current pool. Time=%s", elapsed_str)
+    else:
+        logger.info("Completed. Lineups=%d Time=%s", len(df), elapsed_str)
     return 0
 
 

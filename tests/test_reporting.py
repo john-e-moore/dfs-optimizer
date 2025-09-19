@@ -8,7 +8,7 @@ from src.io_utils import write_excel_with_tabs
 
 def test_build_parameters_df_keys_and_values():
     params = Parameters(lineup_count=10, min_salary=44000, allow_qb_vs_dst=True, stack=2, game_stack=3,
-                        min_player_projection=5.0, min_sum_ownership=0.9, max_sum_ownership=1.3,
+                        min_sum_projection=120.0, min_sum_ownership=0.9, max_sum_ownership=1.3,
                         min_product_ownership=1e-9, max_product_ownership=0.1)
     df = build_parameters_df(params)
     # New layout: one parameter per row

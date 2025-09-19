@@ -86,6 +86,9 @@ def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name
         df["Projection"] = pd.to_numeric(df["Projection"], errors="coerce")
         df = df.dropna(subset=["Projection"])  # type: ignore
         if add_extra_column:
+            # Avoid duplicate column names from prior aggregations
+            if column_name in df.columns:
+                df = df.rename(columns={column_name: f"{column_name}_orig"})
             df[column_name] = s.value
             if "Game Stack" in df.columns:
                 df = _insert_after(df, column_name, df[column_name], "Game Stack")
@@ -113,7 +116,18 @@ def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name
     with pd.ExcelWriter(out_path, engine=engine) as writer:
         combined.to_excel(writer, sheet_name, index=False)
         try:
-            summary = combined.groupby(column_name, dropna=False).size().reset_index(name="Lineups")
+            # Pick the last matching column name to avoid ambiguity if duplicates exist
+            matching_cols = [c for c in combined.columns if c == column_name]
+            if not matching_cols:
+                raise ValueError(f"Missing column '{column_name}' in combined data")
+            series = combined[matching_cols[-1]]
+            summary = (
+                series.astype(object)
+                .fillna("")
+                .value_counts(dropna=False)
+                .reset_index()
+                .rename(columns={"index": column_name, column_name: "Lineups"})
+            )
             summary = summary.sort_values(by=["Lineups", column_name], ascending=[False, True])
             summary.to_excel(writer, "Summary", index=False)
         except Exception as e:

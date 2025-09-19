@@ -4,16 +4,19 @@ import tempfile
 from src.cli import main
 
 
-def test_cli_smoke(monkeypatch):
-    # Use the real projections path; outputs to temp files
+def test_cli_smoke_outputs_under_outdir(monkeypatch):
     tmpdir = tempfile.mkdtemp()
     code = main([
-        "--lineups", "5",
+        "--lineups", "3",
         "--min-salary", "45000",
         "--stack", "1",
-        "--out-unfiltered", os.path.join(tmpdir, "u.xlsx"),
-        "--out-filtered", os.path.join(tmpdir, "f.xlsx"),
+        "--outdir", tmpdir,
     ])
     assert code == 0
-    assert os.path.exists(os.path.join(tmpdir, "u.xlsx"))
-    assert os.path.exists(os.path.join(tmpdir, "f.xlsx"))
+    # Expect a timestamped subdirectory containing lineups.xlsx and lineups.json
+    entries = os.listdir(tmpdir)
+    assert len(entries) == 1
+    run_dir = os.path.join(tmpdir, entries[0])
+    assert os.path.isdir(run_dir)
+    assert os.path.exists(os.path.join(run_dir, "lineups.xlsx"))
+    assert os.path.exists(os.path.join(run_dir, "lineups.json"))

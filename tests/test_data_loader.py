@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import pytest
 
-from dfs_optimizer.data_loader import (
+from src.data_loader import (
     load_raw_projections,
     validate_columns,
     clean_projections,

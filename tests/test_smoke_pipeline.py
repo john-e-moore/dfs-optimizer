@@ -4,7 +4,6 @@ import pandas as pd
 
 from src.models import players_from_df, Parameters
 from src.optimizer import generate_lineups, lineups_to_dataframe
-from src.filters import filter_lineups
 
 
 def synthetic_pool_df():
@@ -64,12 +63,7 @@ def test_end_to_end_smoke():
     lineups = generate_lineups(players, params, max_lineups=3)
     assert 1 <= len(lineups) <= 3
 
-    # Apply a permissive filter to keep all
-    fr = filter_lineups(lineups, Parameters())
-    kept = fr.lineups
-    assert len(kept) == len(lineups)
-
-    out = lineups_to_dataframe(kept)
+    out = lineups_to_dataframe(lineups)
     # Required columns
     for c in ["Rank", "Projection", "Salary", "Sum Ownership", "Product Ownership", "Weighted Ownership", "# Stacked", "QB Stack", "RB/DST Stack", "Game Stack", "QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]:
         assert c in out.columns
