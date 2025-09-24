@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
-: "${LINEUPS:=40}"
+: "${LINEUPS:=100}"
 : "${MIN_SALARY:=49600}"
-: "${STACK:=1}"
+: "${STACK:=0}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
 : "${OUTDIR:=output}"
@@ -18,7 +18,7 @@ set -euo pipefail
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
 : "${MIN_WEIGHTED_OWNERSHIP:=}"
-: "${MAX_WEIGHTED_OWNERSHIP:=15}" # Large field ~12 (sort of equal to sum ownership 100)
+: "${MAX_WEIGHTED_OWNERSHIP:=}" # Large field ~12 (sort of equal to sum ownership 100)
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
 : "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"

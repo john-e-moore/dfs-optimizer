@@ -59,12 +59,15 @@ import sys
 import pandas as pd
 path = sys.argv[1]
 df = pd.read_csv(path)
-if 'Position' not in df.columns or 'Name' not in df.columns:
+cols = {str(c).strip(): c for c in df.columns}
+name_col = cols.get('Name')
+pos_col = cols.get('Position') or cols.get('Pos')
+if not name_col or not pos_col:
     sys.exit(0)
-qbs = sorted(set(str(n) for n in df.loc[df['Position'].astype(str).str.upper().eq('QB'), 'Name']))
+qbs = sorted(set(str(n).strip() for n in df.loc[df[pos_col].astype(str).str.upper().eq('QB'), name_col]))
 for name in qbs:
-    if name.strip():
-        print(name.strip())
+    if name:
+        print(name)
 PY
 }
 
