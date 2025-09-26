@@ -80,6 +80,9 @@ def load_and_clean_sabersim_csv(path: str) -> pd.DataFrame:
     out["Team"] = df[mapping["Team"]].astype(str).str.upper().str.strip()
     out["Opponent"] = df[mapping["Opponent"]].astype(str).str.upper().str.strip()
     out["Position"] = df[mapping["Position"]].astype(str).str.upper().str.strip()
+    # SaberSim may label skill positions as 'RB/FLEX', 'WR/FLEX', 'TE/FLEX'.
+    # Trim the '/FLEX' suffix to align with allowed positions.
+    out["Position"] = out["Position"].str.replace(r"/FLEX$", "", regex=True)
     out["Salary"] = _coerce_numeric(df[mapping["Salary"]])
     out["Projection"] = _coerce_numeric(df[mapping["Projection"]])
     out["Ownership"] = _coerce_numeric(df[mapping["Ownership"]])
