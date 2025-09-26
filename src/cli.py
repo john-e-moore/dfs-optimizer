@@ -29,7 +29,7 @@ logger = setup_logger(__name__)
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="DFS Lineup Optimizer")
     p.add_argument("--projections", type=str, required=False,
-                   default="data/DraftKings NFL DFS Projections -- Main Slate.csv",
+                   default="data/projections_small.csv",
                    help="Path to projections CSV")
     p.add_argument("--ss", "--sabersim", dest="sabersim", action="store_true",
                    help="Load from latest data/NFL_*.csv SaberSim file instead of default projections")
@@ -68,6 +68,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Minimum players by team, repeatable in TEAM:COUNT format (e.g., CAR:3)")
     p.add_argument("--rb-dst-stack", action="store_true",
                    help="Require an RB from the same team as the selected DST in each lineup")
+    p.add_argument("--bringback", action="store_true",
+                   help="Require at least one WR/TE from the opposing team of the selected QB")
 
     p.add_argument("--outdir", type=str, default="output/",
                    help="Directory to write timestamped run outputs")
@@ -178,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         excluded_teams=excluded_teams,
         min_players_by_team=min_players_by_team,
         rb_dst_stack=bool(args.rb_dst_stack),
+        bringback=bool(args.bringback),
         solver_threads=args.solver_threads,
         solver_time_limit_s=args.solver_time_limit_s,
     )

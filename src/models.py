@@ -36,6 +36,7 @@ class Parameters:
     excluded_teams: Set[str] = field(default_factory=set)
     min_players_by_team: Dict[str, int] = field(default_factory=dict)
     rb_dst_stack: bool = False
+    bringback: bool = False
     # Lineup-level projection constraint
     min_sum_projection: Optional[float] = None
     min_sum_ownership: Optional[float] = None

@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
-: "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
+: "${PROJECTIONS:=data/projections_small.csv}"
 : "${LINEUPS:=200}"
 : "${MIN_SALARY:=49600}"
-: "${STACK:=1}"
+: "${STACK:=2}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
 : "${OUTDIR:=output}"
@@ -24,6 +24,7 @@ set -euo pipefail
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
 : "${RB_DST_STACK:=}"
+: "${BRINGBACK:=}"
 : "${SABERSIM:=}"
 : "${SOLVER_THREADS:=5}"
 : "${SOLVER_TIME_LIMIT_S:=}"
@@ -65,6 +66,15 @@ if [[ -n "$RB_DST_STACK" ]]; then
 			ARGS+=(--rb-dst-stack)
 			;;
 	esac
+fi
+
+# Bringback toggle via env var
+if [[ -n "$BRINGBACK" ]]; then
+    case "${BRINGBACK,,}" in
+        1|true|yes|on|enable)
+            ARGS+=(--bringback)
+            ;;
+    esac
 fi
 
 # SaberSim toggle via env var
