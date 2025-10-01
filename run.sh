@@ -5,7 +5,7 @@ set -euo pipefail
 : "${PROJECTIONS:=data/projections_small.csv}"
 : "${LINEUPS:=200}"
 : "${MIN_SALARY:=49600}"
-: "${STACK:=2}"
+: "${STACK:=0}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
 : "${OUTDIR:=output}"
