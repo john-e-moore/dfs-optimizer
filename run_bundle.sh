@@ -85,6 +85,8 @@ read_runs_from_env() {
 }
 
 main() {
+	# Initialize array for forwarding extra global args safely under set -u
+	declare -a EXTRA_GLOBAL_ARGS=()
 	local runs_file=""
 	while (( "$#" )); do
 		case "$1" in
@@ -141,15 +143,25 @@ main() {
 		run_dir="${BASE_OUT_DIR}/bundle/intermediate/${token}"
 		mkdir -p "$run_dir"
 		log "Running: $label"
+		# If env_snippet contains no '=' it's likely flags; treat as args
+		if [[ -n "${env_snippet:-}" && "${env_snippet}" != *"="* ]]; then
+			args_snippet="${env_snippet} ${args_snippet:-}"
+			env_snippet=""
+		fi
 		# Compose a shell command so that quotes in env/args are respected
-		cmd="OUTDIR=\"$run_dir\" ${env_snippet:-} ./run.sh ${args_snippet:-}"
+		if [[ -n "${env_snippet:-}" ]]; then
+			cmd="OUTDIR=\"$run_dir\" ${env_snippet} ./run.sh ${args_snippet:-}"
+		else
+			cmd="OUTDIR=\"$run_dir\" ./run.sh ${args_snippet:-}"
+		fi
 		# If global extra args were provided, append them
-		if [[ ${#EXTRA_GLOBAL_ARGS[@]:-0} -gt 0 ]]; then
+		if [[ ${#EXTRA_GLOBAL_ARGS[@]} -gt 0 ]]; then
 			for ga in "${EXTRA_GLOBAL_ARGS[@]}"; do
 				cmd+=" ${ga}"
 			done
 		fi
 		# Execute via bash -lc to allow proper parsing of quotes
+		log "Executing: $cmd"
 		bash -lc "$cmd" || true
 		# Find latest child output
 		latest_child="$(ls -1dt "$run_dir"/*/ 2>/dev/null | head -n1 | sed 's:/*$::')"
