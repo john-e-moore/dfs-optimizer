@@ -88,6 +88,20 @@ def build_name_to_id_map(dk_df: pd.DataFrame) -> Dict[str, str]:
     return mapping
 
 
+def build_name_to_id_map_from_projections(df: pd.DataFrame, id_col: str = "DFS ID") -> Dict[str, str]:
+    mapping: Dict[str, str] = {}
+    if df is None or df.empty or id_col not in df.columns or "Name" not in df.columns:
+        return mapping
+    for _, row in df.iterrows():
+        name = _normalize_string(row.get("Name", ""))
+        pid = _normalize_string(row.get(id_col, ""))
+        if not name or not pid:
+            continue
+        if name not in mapping:
+            mapping[name] = pid
+    return mapping
+
+
 def _extract_base_name(value: object) -> str:
     s = _normalize_string(value)
     if s.endswith(")") and "(" in s:
@@ -104,6 +118,7 @@ def format_lineups_for_dk(
     projections_df: pd.DataFrame,
     dk_entries_df: pd.DataFrame,
     logger: Optional[object] = None,
+    name_to_id_override: Optional[Dict[str, str]] = None,
 ) -> pd.DataFrame:
     """
     Return a copy of lineups_df where player columns are converted to "Name (ID)".
@@ -118,8 +133,11 @@ def format_lineups_for_dk(
     if not player_cols:
         return out
 
-    # Build name map from DK entries
+    # Build name map from DK entries (and optional override)
     name_to_id = build_name_to_id_map(dk_entries_df)
+    if name_to_id_override:
+        # Override takes precedence
+        name_to_id = {**name_to_id, **name_to_id_override}
 
     # Build quick lookup for positions/teams from projections
     proj = projections_df.copy()

@@ -27,6 +27,7 @@ class LineupResult:
     stack_count: int
     all_game_stacks: Tuple[Tuple[str, int], ...]
     rb_dst_stack: bool
+    bringback_stack: bool
 
     def to_row(self) -> Dict[str, object]:
         row: Dict[str, object] = {}
@@ -40,6 +41,7 @@ class LineupResult:
         row["# Stacked"] = int(self.stack_count)
         row["QB Stack"] = ",".join(self.stack_positions)
         row["RB/DST Stack"] = bool(self.rb_dst_stack)
+        row["Bringback"] = bool(self.bringback_stack)
         # Build multi-game stack string like "CIN/CLE (4), ATL/TB (2)"
         parts = [f"{k.replace('-', '/')} ({v})" for k, v in self.all_game_stacks if v > 1]
         row["Game Stack"] = ", ".join(parts)
@@ -314,6 +316,30 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
                     # No RBs: force DST off to maintain feasibility
                     prob += x[i_dst] == 0
 
+    # BRINGBACK: if a QB from team t is selected, require at least one WR/TE from the opposing team
+    if getattr(params, "bringback", False):
+        for t, qb_idxs in team_to_qb_idxs.items():
+            # Find all opponents faced by team t (might be multiple if dataset includes multiple games)
+            # We enforce bringback across any opponent present: sum over WR/TE on opponents >= sum over QB_t
+            opp_to_wrte: Dict[str, List[int]] = {}
+            for opp, idxs in game_to_idxs.items():
+                # game_to_idxs keys are like "A-B"; split to check if t is in this game
+                if t in opp.split("-"):
+                    # opponent is the other team in the key
+                    a, b = opp.split("-")
+                    other = b if a == t else a
+                    # WR/TE indices for opponent team
+                    opp_to_wrte[other] = team_to_wrte_idxs.get(other, [])
+            # Aggregate over all opponent WR/TE indices
+            opp_wrte_idxs: List[int] = []
+            for idxs in opp_to_wrte.values():
+                opp_wrte_idxs.extend(idxs)
+            if opp_wrte_idxs:
+                prob += (
+                    pulp.lpSum(x[i] for i in opp_wrte_idxs)
+                    >= 1 * pulp.lpSum(x[i] for i in qb_idxs)
+                )
+
     # Iteratively solve and add uniqueness constraints
     while len(lineups) < target_lineups:
         status = prob.solve(solver_cmd)
@@ -343,6 +369,12 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         weighted_ownership = sum((p.salary / 50000.0) * p.ownership for p in selected_players)
 
         stack_positions, max_game_stack, max_game_key, stack_count, all_game_stacks, rb_dst_stack = compute_stack_positions(selected_players)
+        # Bringback diagnostic: WR/TE from opponent of the QB
+        qb = next(p for p in selected_players if p.position == "QB")
+        bringback_stack = any(
+            (p.position in {"WR", "TE"} and p.team == qb.opponent)
+            for p in selected_players
+        )
 
         lineup = LineupResult(
             players=tuple(selected_players),
@@ -357,6 +389,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
             stack_count=stack_count,
             all_game_stacks=all_game_stacks,
             rb_dst_stack=rb_dst_stack,
+            bringback_stack=bringback_stack,
         )
         lineups.append(lineup)
         previous_solutions.append(selected_idxs)
@@ -383,6 +416,7 @@ def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
         "# Stacked",
         "QB Stack",
         "RB/DST Stack",
+        "Bringback",
         "Game Stack",
         "QB",
         "RB1",

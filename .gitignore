@@ -1,5 +1,6 @@
 venv/
 output/
+output_archive/
 data/
 *.csv
 *.xlsx

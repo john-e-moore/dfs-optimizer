@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
-: "${PROJECTIONS:=data/DraftKings NFL DFS Projections -- Main Slate.csv}"
-: "${LINEUPS:=200}"
+: "${PROJECTIONS:=data/projections_small.csv}"
+: "${LINEUPS:=2000}"
 : "${MIN_SALARY:=49600}"
 : "${STACK:=1}"
 : "${GAME_STACK:=0}"
@@ -14,17 +14,19 @@ set -euo pipefail
 : "${ALLOW_QB_VS_DST:=}"
 : "${MIN_SUM_PROJECTION:=}"
 : "${MIN_SUM_OWNERSHIP:=}"
-: "${MAX_SUM_OWNERSHIP:=100}"
+: "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
 : "${MIN_WEIGHTED_OWNERSHIP:=}"
-: "${MAX_WEIGHTED_OWNERSHIP:=}"
+: "${MAX_WEIGHTED_OWNERSHIP:=}" # Large field ~12 (sort of equal to sum ownership 100)
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
 : "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"
 : "${MIN_TEAM:=}"
 : "${RB_DST_STACK:=}"
-: "${SOLVER_THREADS:=5}"
+: "${BRINGBACK:=}"
+: "${SABERSIM:=}"
+: "${SOLVER_THREADS:=20}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
 # Activate venv if present
@@ -66,8 +68,26 @@ if [[ -n "$RB_DST_STACK" ]]; then
 	esac
 fi
 
-# Run optimizer
-python -m src.cli "${ARGS[@]}"
+# Bringback toggle via env var
+if [[ -n "$BRINGBACK" ]]; then
+    case "${BRINGBACK,,}" in
+        1|true|yes|on|enable)
+            ARGS+=(--bringback)
+            ;;
+    esac
+fi
+
+# SaberSim toggle via env var
+if [[ -n "$SABERSIM" ]]; then
+	case "${SABERSIM,,}" in
+		1|true|yes|on|enable)
+			ARGS+=(--ss)
+			;;
+	esac
+fi
+
+# Run optimizer (forward any additional CLI flags passed to this script)
+python -m src.cli "${ARGS[@]}" "$@"
 
 # Discover the latest run directory under OUTDIR and echo it for callers
 if [[ -d "$OUTDIR" ]]; then

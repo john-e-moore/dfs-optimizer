@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 
 from .data_loader import load_and_clean
+from .sabersim_loader import find_latest_sabersim_csv, load_and_clean_sabersim_csv
 from .models import players_from_df, Parameters
 from .optimizer import generate_lineups, lineups_to_dataframe
 from .reporting import export_workbook
@@ -28,8 +29,10 @@ logger = setup_logger(__name__)
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="DFS Lineup Optimizer")
     p.add_argument("--projections", type=str, required=False,
-                   default="data/DraftKings NFL DFS Projections -- Main Slate.csv",
+                   default="data/projections_small.csv",
                    help="Path to projections CSV")
+    p.add_argument("--ss", "--sabersim", dest="sabersim", action="store_true",
+                   help="Load from latest data/NFL_*.csv SaberSim file instead of default projections")
     p.add_argument("--lineups", type=int, default=5000)
     p.add_argument("--min-salary", type=int, default=45000)
     p.add_argument("--allow-qb-vs-dst", action="store_true")
@@ -65,6 +68,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Minimum players by team, repeatable in TEAM:COUNT format (e.g., CAR:3)")
     p.add_argument("--rb-dst-stack", action="store_true",
                    help="Require an RB from the same team as the selected DST in each lineup")
+    p.add_argument("--bringback", action="store_true",
+                   help="Require at least one WR/TE from the opposing team of the selected QB")
 
     p.add_argument("--outdir", type=str, default="output/",
                    help="Directory to write timestamped run outputs")
@@ -175,12 +180,21 @@ def main(argv: list[str] | None = None) -> int:
         excluded_teams=excluded_teams,
         min_players_by_team=min_players_by_team,
         rb_dst_stack=bool(args.rb_dst_stack),
+        bringback=bool(args.bringback),
         solver_threads=args.solver_threads,
         solver_time_limit_s=args.solver_time_limit_s,
     )
     params.validate()
 
-    cleaned = load_and_clean(args.projections)
+    # Load projections either from CSV (default) or SaberSim Excel when -ss is set
+    if args.sabersim:
+        try:
+            xlsx_path = find_latest_sabersim_csv("data/", prefix="NFL_")
+        except Exception as e:
+            raise SystemExit(str(e))
+        cleaned = load_and_clean_sabersim_csv(xlsx_path)
+    else:
+        cleaned = load_and_clean(args.projections)
     # Determine run directory
     run_dir = _compute_run_dir(args.outdir)
     # Save early snapshots to the run directory as well

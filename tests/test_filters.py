@@ -31,6 +31,7 @@ def make_lineup(sum_own: float = 1.0, prod_own: float = 1e-6, min_proj: float = 
         stack_count=1,
         all_game_stacks=(("A-B", 3),),
         rb_dst_stack=False,
+        bringback_stack=False,
     )
 
 

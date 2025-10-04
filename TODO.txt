@@ -1,0 +1,5 @@
+- Curl slate info from DraftKings and assign game time to players_pool
+- Automatically put latest window players in FLEX
+- Late swap: generate top late swaps. I guess I only need a handful of options here:
+ - the max projection, max chalk, and max projection with various ownership constraints
+   (all maintaining at least a single stack I guess)
