@@ -46,6 +46,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     # Filters / constraints
     p.add_argument("--min-sum-projection", type=float, default=None,
                    help="Minimum total projection per lineup (replaces --min-player-projection)")
+    p.add_argument("--max-sum-projection", type=float, default=None,
+                   help="Maximum total projection per lineup")
     p.add_argument("--min-sum-ownership", type=float, default=None,
                    help="Fraction 0..1")
     p.add_argument("--max-sum-ownership", type=float, default=None,
@@ -135,6 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
 
     min_sum_projection = args.min_sum_projection
+    max_sum_projection = args.max_sum_projection
 
     # Normalize list-like arguments
     excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
@@ -169,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         game_stack=args.game_stack,
         game_stack_target=game_stack_target,
         min_sum_projection=min_sum_projection,
+        max_sum_projection=max_sum_projection,
         min_sum_ownership=min_sum_ownership,
         max_sum_ownership=max_sum_ownership,
         min_product_ownership=args.min_product_ownership,

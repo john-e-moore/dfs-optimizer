@@ -205,9 +205,11 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
 
-    # Lineup-level projection minimum
+    # Lineup-level projection bounds
     if params.min_sum_projection is not None:
         prob += pulp.lpSum(players[i].projection * x[i] for i in index) >= float(params.min_sum_projection)
+    if getattr(params, "max_sum_projection", None) is not None:
+        prob += pulp.lpSum(players[i].projection * x[i] for i in index) <= float(params.max_sum_projection)
 
     # Ownership sum bounds (treat ownership as fraction)
     if params.min_sum_ownership is not None:

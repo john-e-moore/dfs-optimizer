@@ -38,6 +38,37 @@ fi
 
 log() { printf "[%s] %s\n" "$(date '+%H:%M:%S')" "$*"; }
 
+# Resolve projections path based on --ss flag or SABERSIM env
+resolve_projections_from_args() {
+    local use_ss=""
+    # Detect --ss or -ss in args
+    for arg in "$@"; do
+        if [[ "$arg" == "--ss" || "$arg" == "-ss" ]]; then
+            use_ss=1
+            break
+        fi
+    done
+    # Also honor SABERSIM env toggle
+    if [[ -z "$use_ss" && -n "${SABERSIM:-}" ]]; then
+        case "${SABERSIM,,}" in
+            1|true|yes|on|enable)
+                use_ss=1
+                ;;
+        esac
+    fi
+    if [[ -n "$use_ss" ]]; then
+        # Pick the most recent SaberSim-style file
+        local latest
+        latest="$(ls -1t data/NFL_*.csv data/NFL_*.xlsx 2>/dev/null | head -n1 || true)"
+        if [[ -n "$latest" ]]; then
+            PROJECTIONS="$latest"
+            log "Using SaberSim projections: $PROJECTIONS"
+        else
+            log "Warning: --ss provided but no data/NFL_*.csv|.xlsx found; falling back to PROJECTIONS=$PROJECTIONS"
+        fi
+    fi
+}
+
 sanitize() {
     # Make a filesystem-safe token from a QB name
     # Keep alnum, dash, underscore; replace spaces with underscore; drop others
@@ -57,8 +88,13 @@ discover_qbs() {
     "$PYBIN" - "$PROJECTIONS" << 'PY'
 import sys
 import pandas as pd
+import os
 path = sys.argv[1]
-df = pd.read_csv(path)
+ext = os.path.splitext(path)[1].lower()
+if ext in ('.xls', '.xlsx'):
+    df = pd.read_excel(path)
+else:
+    df = pd.read_csv(path)
 cols = {str(c).strip(): c for c in df.columns}
 name_col = cols.get('Name')
 pos_col = cols.get('Position') or cols.get('Pos')
@@ -72,6 +108,8 @@ PY
 }
 
 main() {
+    # Resolve projections before discovering QBs
+    resolve_projections_from_args "$@"
     log "QB stacks: discovering quarterbacks..."
     mapfile -t QBS < <(discover_qbs)
     if [[ ${#QBS[@]} -eq 0 ]]; then
@@ -89,8 +127,8 @@ main() {
         run_dir="${BASE_OUT_DIR}/qb_stacks/intermediate/${token}"
         mkdir -p "$run_dir"
         log "Running for QB: $qb"
-        # Invoke run.sh with per-run outdir and include the QB
-        INCLUDE_PLAYERS="$qb" OUTDIR="$run_dir" ./run.sh "$@" || true
+        # Invoke run.sh with per-run outdir and include the QB; pass PROJECTIONS through
+        INCLUDE_PLAYERS="$qb" OUTDIR="$run_dir" PROJECTIONS="$PROJECTIONS" ./run.sh "$@" || true
         # Determine the timestamped child run directory
         latest_child="$(ls -1dt "$run_dir"/*/ 2>/dev/null | head -n1 | sed 's:/*$::')"
         out_xlsx="${latest_child}/lineups.xlsx"

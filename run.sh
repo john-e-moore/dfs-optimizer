@@ -13,6 +13,7 @@ set -euo pipefail
 # Optional flags (left empty to use defaults); environment can override
 : "${ALLOW_QB_VS_DST:=}"
 : "${MIN_SUM_PROJECTION:=}"
+: "${MAX_SUM_PROJECTION:=}"
 : "${MIN_SUM_OWNERSHIP:=}"
 : "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
@@ -48,6 +49,7 @@ ARGS=(
 # Conditionally add optional flags if variables are set
 [[ -n "$ALLOW_QB_VS_DST" ]] && ARGS+=(--allow-qb-vs-dst)
 [[ -n "$MIN_SUM_PROJECTION" ]] && ARGS+=(--min-sum-projection "$MIN_SUM_PROJECTION")
+[[ -n "$MAX_SUM_PROJECTION" ]] && ARGS+=(--max-sum-projection "$MAX_SUM_PROJECTION")
 [[ -n "$MIN_SUM_OWNERSHIP" ]] && ARGS+=(--min-sum-ownership "$MIN_SUM_OWNERSHIP")
 [[ -n "$MAX_SUM_OWNERSHIP" ]] && ARGS+=(--max-sum-ownership "$MAX_SUM_OWNERSHIP")
 [[ -n "$MIN_PRODUCT_OWNERSHIP" ]] && ARGS+=(--min-product-ownership "$MIN_PRODUCT_OWNERSHIP")

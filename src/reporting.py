@@ -24,6 +24,7 @@ def build_parameters_df(params: Parameters) -> pd.DataFrame:
         "stack",
         "game_stack",
         "min_sum_projection",
+        "max_sum_projection",
         "min_sum_ownership",
         "max_sum_ownership",
         "min_product_ownership",

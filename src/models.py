@@ -37,8 +37,9 @@ class Parameters:
     min_players_by_team: Dict[str, int] = field(default_factory=dict)
     rb_dst_stack: bool = False
     bringback: bool = False
-    # Lineup-level projection constraint
+    # Lineup-level projection constraints
     min_sum_projection: Optional[float] = None
+    max_sum_projection: Optional[float] = None
     min_sum_ownership: Optional[float] = None
     max_sum_ownership: Optional[float] = None
     min_product_ownership: Optional[float] = None
@@ -62,6 +63,10 @@ class Parameters:
             assert isinstance(v, int) and v >= 0, "Minimum players by team must be non-negative integer"
         if self.min_sum_projection is not None:
             assert self.min_sum_projection >= 0
+        if self.max_sum_projection is not None:
+            assert self.max_sum_projection >= 0
+        if self.min_sum_projection is not None and self.max_sum_projection is not None:
+            assert self.min_sum_projection <= self.max_sum_projection
         if self.min_sum_ownership is not None:
             assert 0 <= self.min_sum_ownership <= 100, "Ownership may be fraction or percent; normalized upstream"
         if self.max_sum_ownership is not None:
