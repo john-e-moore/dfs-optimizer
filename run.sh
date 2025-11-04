@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/projections_small.csv}"
-: "${LINEUPS:=2000}"
+: "${LINEUPS:=100}"
 : "${MIN_SALARY:=49600}"
 : "${STACK:=1}"
 : "${GAME_STACK:=0}"
@@ -27,7 +27,7 @@ set -euo pipefail
 : "${RB_DST_STACK:=}"
 : "${BRINGBACK:=}"
 : "${SABERSIM:=}"
-: "${SOLVER_THREADS:=20}"
+: "${SOLVER_THREADS:=10}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
 # Activate venv if present
