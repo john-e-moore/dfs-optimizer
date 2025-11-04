@@ -308,3 +308,44 @@ Below are copy-pasteable examples for typical strategies. Use either the CLI for
 ### Tips
 - `./run.sh` sets opinionated defaults (e.g., higher `MIN_SALARY`; `GAME_STACK` defaults to 0). Override via env vars as shown above if desired.
 - When using default output names, both the CLI and scripts will place results under `output/<timestamp>/` automatically.
+
+### Diversify lineups across bundles (Jaccard)
+
+Select diversified lineups across one or more aggregated workbooks (e.g., outputs of `run_bundle_multiple.sh`), enforcing per-source quotas while maximizing global diversification via Jaccard distance.
+
+```bash
+# Example: pick 5/6/5 across three spreadsheets (sheet defaults to 'Lineups')
+./run_diversify.sh \
+  --input output/20251102_113751/small_u1k.xlsx \
+  --input output/20251102_113751/medium_1k_3k.xlsx \
+  --input output/20251102_113751/large_o3k.xlsx \
+  --pick output/20251102_113751/small_u1k.xlsx:5 \
+  --pick output/20251102_113751/medium_1k_3k.xlsx:6 \
+  --pick output/20251102_113751/large_o3k.xlsx:5 \
+  --out output/20251102_113751/diversified.xlsx
+
+# Example: single workbook with multiple sheets
+./run_diversify.sh \
+  --input output/20251104_101500/bundle.xlsx \
+  --pick output/20251104_101500/bundle.xlsx:Small2:5 \
+  --pick output/20251104_101500/bundle.xlsx:Small2_BR:6 \
+  --pick output/20251104_101500/bundle.xlsx:Small2_BR_GS:5 \
+  --out output/20251104_101500/diversified.xlsx
+
+# Options
+#   --sheet-name Lineups            # default sheet to read when not specified in --pick
+#   --projection-col Projection     # column used for tie-breaks
+#   --players-col players           # if roster slots are not present, use this combined column
+#   --roster-cols QB,RB1,RB2,WR1,WR2,WR3,TE,FLEX,DST
+#   --allow-shortfall               # allow selecting fewer than quota if a source has insufficient rows
+```
+
+Output workbook sheets:
+- `Selected`: selected lineups with source provenance and min-distance per lineup
+- `Exposure`: player exposures across the selection
+- `Teams`: team exposures (if team could be parsed)
+- `Metrics`: min/avg pairwise Jaccard across the selection
+- `Summary`: per-source quota, available, selected
+
+Notes:
+- Diversification is purely based on player set overlap (Jaccard). An ownership-aware tie-breaker is planned as a v2 option.
