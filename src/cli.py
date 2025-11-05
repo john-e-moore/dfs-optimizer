@@ -22,6 +22,7 @@ from .observability import (
     snapshot_parameters,
 )
 from .io_utils import ensure_dir
+from .slate_loader import find_single_json_in_data, build_start_time_map
 
 logger = setup_logger(__name__)
 
@@ -210,7 +211,20 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.time()
     lineups = generate_lineups(players, params)
     elapsed = time.time() - t0
-    df = lineups_to_dataframe(lineups)
+    # Load slate start times from a single JSON in data/, if present
+    try:
+        json_path = find_single_json_in_data("data/")
+    except Exception as e:
+        raise SystemExit(str(e))
+    start_time_map = None
+    if json_path:
+        try:
+            start_time_map = build_start_time_map(json_path)
+            logger.info("Loaded draftables JSON '%s'; start-time entries=%d", os.path.basename(json_path), len(start_time_map))
+        except Exception as e:
+            logger.info("Failed to build start time map from '%s': %s", json_path, str(e))
+            start_time_map = None
+    df = lineups_to_dataframe(lineups, start_time_map=start_time_map)
     snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
     snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
     export_workbook(cleaned, params, df, os.path.join(run_dir, "lineups.xlsx"))
