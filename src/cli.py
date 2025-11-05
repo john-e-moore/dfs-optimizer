@@ -22,7 +22,7 @@ from .observability import (
     snapshot_parameters,
 )
 from .io_utils import ensure_dir
-from .slate_loader import find_single_json_in_data, build_start_time_map
+from .slate_loader import find_single_json_in_data, build_start_time_map, extract_games_table
 
 logger = setup_logger(__name__)
 
@@ -211,23 +211,35 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.time()
     lineups = generate_lineups(players, params)
     elapsed = time.time() - t0
-    # Load slate start times from a single JSON in data/, if present
+    # Load slate start times from a single JSON in data/; enforce presence
     try:
         json_path = find_single_json_in_data("data/")
     except Exception as e:
         raise SystemExit(str(e))
-    start_time_map = None
-    if json_path:
-        try:
-            start_time_map = build_start_time_map(json_path)
-            logger.info("Loaded draftables JSON '%s'; start-time entries=%d", os.path.basename(json_path), len(start_time_map))
-        except Exception as e:
-            logger.info("Failed to build start time map from '%s': %s", json_path, str(e))
-            start_time_map = None
+    if not json_path:
+        raise SystemExit("No draftables JSON found in data/. Expected exactly one file.")
+    try:
+        start_time_map = build_start_time_map(json_path)
+        games_df = extract_games_table(json_path)
+        logger.info(
+            "Loaded draftables JSON '%s'; start-time entries=%d; games=%d",
+            os.path.basename(json_path),
+            len(start_time_map),
+            len(games_df) if games_df is not None else 0,
+        )
+    except Exception as e:
+        raise SystemExit(f"Failed reading draftables JSON '{json_path}': {e}")
     df = lineups_to_dataframe(lineups, start_time_map=start_time_map)
     snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
     snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
-    export_workbook(cleaned, params, df, os.path.join(run_dir, "lineups.xlsx"))
+    export_workbook(
+        cleaned,
+        params,
+        df,
+        os.path.join(run_dir, "lineups.xlsx"),
+        start_time_map=start_time_map,
+        games_df=games_df,
+    )
 
     # Human-friendly timing
     if elapsed >= 120:

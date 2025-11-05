@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 
@@ -50,9 +50,17 @@ def build_parameters_df(params: Parameters) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["Parameter", "Value"])
 
 
-def export_workbook(projections_df: pd.DataFrame, params: Parameters, lineups_df: pd.DataFrame, path: str) -> None:
+def export_workbook(
+    projections_df: pd.DataFrame,
+    params: Parameters,
+    lineups_df: pd.DataFrame,
+    path: str,
+    *,
+    start_time_map: Optional[Dict[Tuple[str, str], int]] = None,
+    games_df: Optional[pd.DataFrame] = None,
+) -> None:
     params_df = build_parameters_df(params)
-    players_df = build_players_exposure_df(lineups_df, projections_df)
+    players_df = build_players_exposure_df(lineups_df, projections_df, start_time_map=start_time_map)
     try:
         name_to_id_override = None
         if "DFS ID" in projections_df.columns:
@@ -65,20 +73,31 @@ def export_workbook(projections_df: pd.DataFrame, params: Parameters, lineups_df
             dk_entries,
             name_to_id_override=name_to_id_override,
         )
-        extra_tabs = {"DK Lineups": dk_lineups_df}
+        extra_tabs: Dict[str, pd.DataFrame] = {"DK Lineups": dk_lineups_df}
     except Exception:
         # Be resilient; if anything fails in DK mapping, proceed without the extra tab
-        extra_tabs = None  # type: ignore
-    write_excel_with_tabs(projections_df, params_df, lineups_df, path, players_df=players_df, extra_tabs=extra_tabs)
+        extra_tabs = {}
+    # Add Games tab when provided
+    if games_df is not None:
+        try:
+            extra_tabs["Games"] = games_df
+        except Exception:
+            pass
+    write_excel_with_tabs(projections_df, params_df, lineups_df, path, players_df=players_df, extra_tabs=extra_tabs or None)
 
 
-def build_players_exposure_df(lineups_df: pd.DataFrame, projections_df: pd.DataFrame) -> pd.DataFrame:
+def build_players_exposure_df(
+    lineups_df: pd.DataFrame,
+    projections_df: pd.DataFrame,
+    *,
+    start_time_map: Optional[Dict[Tuple[str, str], int]] = None,
+) -> pd.DataFrame:
     if lineups_df is None or lineups_df.empty:
-        return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": []})
+        return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": [], "Start Time": []})
     player_cols = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
     present_cols = [c for c in player_cols if c in lineups_df.columns]
     if not present_cols:
-        return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": []})
+        return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": [], "Start Time": []})
 
     # Extract player names by stripping any trailing parenthetical (team or ownership)
     def extract_name(value: str) -> str:
@@ -112,12 +131,24 @@ def build_players_exposure_df(lineups_df: pd.DataFrame, projections_df: pd.DataF
         pos = name_to_pos.get(name, "")
         team = name_to_team.get(name, "")
         pct = int(round(cnt / total_lineups * 100))
+        # Look up start time using (NAME, TEAM) with uppercase matching
+        start_str = ""
+        if start_time_map is not None and team:
+            key = (str(name).upper().strip(), str(team).upper().strip())
+            epoch = start_time_map.get(key)
+            if epoch is not None:
+                try:
+                    ts = pd.to_datetime(int(epoch), unit="s", utc=True).tz_convert("US/Eastern")
+                    start_str = ts.strftime("%Y-%m-%d %H:%M ET")
+                except Exception:
+                    start_str = ""
         records.append({
             "Player": name,
             "Position": pos,
             "Team": team,
             "# Lineups": int(cnt),
             "% Lineups": pct,
+            "Start Time": start_str,
         })
 
     out = pd.DataFrame.from_records(records)
