@@ -13,13 +13,13 @@ fi
 if [[ $# -eq 0 ]]; then
     # No args provided: run the default diversified selection used previously in diversify.sh
     DEFAULT_ARGS=(
-        --input output/20251103_205547/small_u1k.xlsx
-        --input output/20251103_205547/medium_1k_3k.xlsx
-        --input output/20251103_205547/large_o3k.xlsx
-        --pick output/20251103_205547/small_u1k.xlsx:5
-        --pick output/20251103_205547/medium_1k_3k.xlsx:6
-        --pick output/20251103_205547/large_o3k.xlsx:5
-        --out output/20251103_205547/diversified.xlsx
+        --input output/20251108_173201/small_u1k.xlsx
+        --input output/20251108_173201/medium_1k_3k.xlsx
+        --input output/20251108_173201/large_o3k.xlsx
+        --pick output/20251108_173201/small_u1k.xlsx:5
+        --pick output/20251108_173201/medium_1k_3k.xlsx:6
+        --pick output/20251108_173201/large_o3k.xlsx:5
+        --out output/20251108_173201/diversified.xlsx
     )
     exec "$PYBIN" -m src.feature_diversify.cli "${DEFAULT_ARGS[@]}"
 else

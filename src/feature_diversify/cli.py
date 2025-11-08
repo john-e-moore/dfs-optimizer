@@ -14,6 +14,7 @@ from .io_excel import (
     read_lineups_from_sources,
 )
 from .selector import SelectionResult, farthest_first_with_quotas, jaccard_distance
+from ..dk_upload import load_dk_entries, format_lineups_for_dk
 
 
 def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -187,6 +188,35 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         rows.append(row_dict)
     selected_df = pd.DataFrame(rows)
 
+    # Build DK-ready replica of Selected (player cells formatted as "Name (ID)")
+    try:
+        player_cols_all = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
+        player_cols = [c for c in player_cols_all if c in selected_df.columns]
+        proj_min = pd.DataFrame({"Name": []})
+        if player_cols:
+            def _extract_name(value: object) -> str:
+                s = str(value) if value is not None else ""
+                s = s.strip()
+                if s.endswith(")") and "(" in s:
+                    try:
+                        return s.rsplit(" (", 1)[0]
+                    except Exception:
+                        return s
+                return s
+            names_series = pd.Series(dtype=object)
+            for c in player_cols:
+                names_series = pd.concat(
+                    [names_series, selected_df[c].dropna().astype(str).map(_extract_name)],
+                    ignore_index=True,
+                )
+            unique_names = sorted(set(n for n in names_series.tolist() if n))
+            proj_min = pd.DataFrame({"Name": unique_names})
+        dk_entries_df = load_dk_entries()
+        dk_selected_df = format_lineups_for_dk(selected_df, proj_min, dk_entries_df)
+    except Exception:
+        # On any failure, fall back to writing only Selected without DK tab
+        dk_selected_df = None
+
     # Exposure sheets
     players_df, teams_df = _build_exposure(selected)
 
@@ -220,6 +250,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     with pd.ExcelWriter(args.out, engine="xlsxwriter") as writer:
         selected_df.to_excel(writer, "Selected", index=False)
+        if dk_selected_df is not None:
+            dk_selected_df.to_excel(writer, "DK Lineups", index=False)
         players_df.to_excel(writer, "Exposure", index=False)
         teams_df.to_excel(writer, "Teams", index=False)
         metrics_df.to_excel(writer, "Metrics", index=False)
