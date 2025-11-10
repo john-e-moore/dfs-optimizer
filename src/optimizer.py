@@ -29,7 +29,7 @@ class LineupResult:
     rb_dst_stack: bool
     bringback_stack: bool
 
-    def to_row(self) -> Dict[str, object]:
+    def to_row(self, start_time_map: Dict[Tuple[str, str], int] | None = None) -> Dict[str, object]:
         row: Dict[str, object] = {}
         row["Projection"] = self.total_projection
         row["Salary"] = int(self.total_salary)
@@ -46,29 +46,54 @@ class LineupResult:
         parts = [f"{k.replace('-', '/')} ({v})" for k, v in self.all_game_stacks if v > 1]
         row["Game Stack"] = ", ".join(parts)
         # Ordered player slots: QB, RB, RB, WR, WR, WR, TE, FLEX, DST
-        players_by_pos = sorted(self.players, key=lambda p: (pos_order(p.position), -p.projection))
-        # Build slots by consuming required counts
+        # Choose FLEX as the latest start time among eligible RB/WR/TE while preserving minima
         slots: List[Player] = [None] * 9  # type: ignore
-        # Assign exact counts
-        qb = [p for p in players_by_pos if p.position == "QB"]
-        dst = [p for p in players_by_pos if p.position == "DST"]
-        rb = [p for p in players_by_pos if p.position == "RB"]
-        wr = [p for p in players_by_pos if p.position == "WR"]
-        te = [p for p in players_by_pos if p.position == "TE"]
-        flex_candidates = [p for p in players_by_pos if p.position in {"RB", "WR", "TE"}]
+        players_list = list(self.players)
+        qb = [p for p in players_list if p.position == "QB"]
+        dst = [p for p in players_list if p.position == "DST"]
+        rb = [p for p in players_list if p.position == "RB"]
+        wr = [p for p in players_list if p.position == "WR"]
+        te = [p for p in players_list if p.position == "TE"]
         assert len(qb) == 1 and len(dst) == 1 and len(rb) >= 2 and len(wr) >= 3 and len(te) >= 1
+
+        def _start_time(p: Player) -> int:
+            if not start_time_map:
+                return 0
+            key = (p.name.upper().strip(), p.team.upper().strip())
+            return int(start_time_map.get(key, 0))
+
+        # Determine eligible FLEX candidates that won't violate minima when moved to FLEX
+        eligible: List[Player] = []
+        for p in players_list:
+            if p.position not in {"RB", "WR", "TE"}:
+                continue
+            if p.position == "RB" and len(rb) <= 2:
+                continue
+            if p.position == "WR" and len(wr) <= 3:
+                continue
+            if p.position == "TE" and len(te) <= 1:
+                continue
+            eligible.append(p)
+
+        # Pick the latest-starting eligible player; tie-break by higher projection
+        # If no eligible (should not happen), fallback to any RB/WR/TE
+        pool = eligible if eligible else [p for p in players_list if p.position in {"RB", "WR", "TE"}]
+        flex = max(pool, key=lambda p: (_start_time(p), p.projection))
+
+        # Assign fixed slots
         slots[0] = qb[0]
-        slots[1] = rb[0]
-        slots[2] = rb[1]
-        slots[3] = wr[0]
-        slots[4] = wr[1]
-        slots[5] = wr[2]
-        slots[6] = te[0]
-        # FLEX is any remaining highest projection among candidates not already used in slots 1..6
-        used_ids = {id(x) for x in slots[:7]}
-        flex = next(p for p in flex_candidates if id(p) not in used_ids)
-        slots[7] = flex
         slots[8] = dst[0]
+
+        # Fill remaining positions excluding the FLEX player
+        rb_fill = sorted([p for p in rb if p is not flex], key=lambda p: p.projection, reverse=True)[:2]
+        wr_fill = sorted([p for p in wr if p is not flex], key=lambda p: p.projection, reverse=True)[:3]
+        te_fill = sorted([p for p in te if p is not flex], key=lambda p: p.projection, reverse=True)[:1]
+
+        assert len(rb_fill) == 2 and len(wr_fill) == 3 and len(te_fill) == 1
+        slots[1], slots[2] = rb_fill[0], rb_fill[1]
+        slots[3], slots[4], slots[5] = wr_fill[0], wr_fill[1], wr_fill[2]
+        slots[6] = te_fill[0]
+        slots[7] = flex
         # Fill columns with Name (OWNERSHIP%) where ownership is shown as a percentage with one decimal
         def fmt(p: Player) -> str:
             return f"{p.name} ({p.ownership * 100:.1f}%)"
@@ -205,9 +230,11 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
 
-    # Lineup-level projection minimum
+    # Lineup-level projection bounds
     if params.min_sum_projection is not None:
         prob += pulp.lpSum(players[i].projection * x[i] for i in index) >= float(params.min_sum_projection)
+    if getattr(params, "max_sum_projection", None) is not None:
+        prob += pulp.lpSum(players[i].projection * x[i] for i in index) <= float(params.max_sum_projection)
 
     # Ownership sum bounds (treat ownership as fraction)
     if params.min_sum_ownership is not None:
@@ -400,10 +427,10 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     return lineups
 
 
-def lineups_to_dataframe(lineups: List[LineupResult]) -> pd.DataFrame:
+def lineups_to_dataframe(lineups: List[LineupResult], start_time_map: Dict[Tuple[str, str], int] | None = None) -> pd.DataFrame:
     rows: List[Dict[str, object]] = []
     for i, lu in enumerate(sorted(lineups, key=lambda l: l.total_projection, reverse=True), start=1):
-        row = lu.to_row()
+        row = lu.to_row(start_time_map)
         row["Rank"] = i
         rows.append(row)
     cols = [

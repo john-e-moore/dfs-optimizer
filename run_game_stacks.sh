@@ -51,6 +51,34 @@ fi
 
 log() { printf "[%s] %s\n" "$(date '+%H:%M:%S')" "$*"; }
 
+# Resolve projections path based on --ss flag or SABERSIM env
+resolve_projections_from_args() {
+    local use_ss=""
+    for arg in "$@"; do
+        if [[ "$arg" == "--ss" || "$arg" == "-ss" ]]; then
+            use_ss=1
+            break
+        fi
+    done
+    if [[ -z "$use_ss" && -n "${SABERSIM:-}" ]]; then
+        case "${SABERSIM,,}" in
+            1|true|yes|on|enable)
+                use_ss=1
+                ;;
+        esac
+    fi
+    if [[ -n "$use_ss" ]]; then
+        local latest
+        latest="$(ls -1t data/NFL_*.csv data/NFL_*.xlsx 2>/dev/null | head -n1 || true)"
+        if [[ -n "$latest" ]]; then
+            PROJECTIONS="$latest"
+            log "Using SaberSim projections: $PROJECTIONS"
+        else
+            log "Warning: --ss provided but no data/NFL_*.csv|.xlsx found; falling back to PROJECTIONS=$PROJECTIONS"
+        fi
+    fi
+}
+
 sanitize() {
     # Make a filesystem-safe token from a game key like AAA/BBB
     local s="$1"
@@ -84,9 +112,14 @@ discover_games() {
     "$PYBIN" - "$PROJECTIONS" << 'PY'
 import sys
 import pandas as pd
+import os
 path = sys.argv[1]
 try:
-    df = pd.read_csv(path)
+    ext = os.path.splitext(path)[1].lower()
+    if ext in ('.xls', '.xlsx'):
+        df = pd.read_excel(path)
+    else:
+        df = pd.read_csv(path)
 except Exception:
     sys.exit(0)
 if 'Team' not in df.columns or 'Opponent' not in df.columns:
@@ -105,6 +138,8 @@ PY
 }
 
 main() {
+    # Resolve projections before discovering games
+    resolve_projections_from_args "$@"
     log "Game stacks: discovering games..."
     mapfile -t GAMES < <(discover_games)
     if [[ ${#GAMES[@]} -eq 0 ]]; then
@@ -122,8 +157,8 @@ main() {
         run_dir="${BASE_OUT_DIR}/game_stacks/intermediate/${token}"
         mkdir -p "$run_dir"
         log "Running for Game: $g"
-        # Invoke run.sh with per-run output directory and targeted game stack
-        GAME_STACK_TARGET="$g" OUTDIR="$run_dir" ./run.sh "$@" || true
+        # Invoke run.sh with per-run output directory and targeted game stack; pass PROJECTIONS through
+        GAME_STACK_TARGET="$g" OUTDIR="$run_dir" PROJECTIONS="$PROJECTIONS" ./run.sh "$@" || true
         # Determine the timestamped child run directory
         latest_child="$(ls -1dt "$run_dir"/*/ 2>/dev/null | head -n1 | sed 's:/*$::')"
         out_xlsx="${latest_child}/lineups.xlsx"

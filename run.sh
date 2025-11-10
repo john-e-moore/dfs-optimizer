@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/projections_small.csv}"
-: "${LINEUPS:=2000}"
+: "${LINEUPS:=500}"
 : "${MIN_SALARY:=49600}"
 : "${STACK:=1}"
 : "${GAME_STACK:=0}"
@@ -13,12 +13,13 @@ set -euo pipefail
 # Optional flags (left empty to use defaults); environment can override
 : "${ALLOW_QB_VS_DST:=}"
 : "${MIN_SUM_PROJECTION:=}"
+: "${MAX_SUM_PROJECTION:=}"
 : "${MIN_SUM_OWNERSHIP:=}"
 : "${MAX_SUM_OWNERSHIP:=}"
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
 : "${MIN_WEIGHTED_OWNERSHIP:=}"
-: "${MAX_WEIGHTED_OWNERSHIP:=}" # Large field ~12 (sort of equal to sum ownership 100)
+: "${MAX_WEIGHTED_OWNERSHIP:=}" # Range from about 18-24 in my tournaments; between about 500-5000 players in the field. 16-ish for really big ones?
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
 : "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"
@@ -26,7 +27,7 @@ set -euo pipefail
 : "${RB_DST_STACK:=}"
 : "${BRINGBACK:=}"
 : "${SABERSIM:=}"
-: "${SOLVER_THREADS:=20}"
+: "${SOLVER_THREADS:=10}"
 : "${SOLVER_TIME_LIMIT_S:=}"
 
 # Activate venv if present
@@ -48,6 +49,7 @@ ARGS=(
 # Conditionally add optional flags if variables are set
 [[ -n "$ALLOW_QB_VS_DST" ]] && ARGS+=(--allow-qb-vs-dst)
 [[ -n "$MIN_SUM_PROJECTION" ]] && ARGS+=(--min-sum-projection "$MIN_SUM_PROJECTION")
+[[ -n "$MAX_SUM_PROJECTION" ]] && ARGS+=(--max-sum-projection "$MAX_SUM_PROJECTION")
 [[ -n "$MIN_SUM_OWNERSHIP" ]] && ARGS+=(--min-sum-ownership "$MIN_SUM_OWNERSHIP")
 [[ -n "$MAX_SUM_OWNERSHIP" ]] && ARGS+=(--max-sum-ownership "$MAX_SUM_OWNERSHIP")
 [[ -n "$MIN_PRODUCT_OWNERSHIP" ]] && ARGS+=(--min-product-ownership "$MIN_PRODUCT_OWNERSHIP")

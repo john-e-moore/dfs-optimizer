@@ -22,6 +22,7 @@ from .observability import (
     snapshot_parameters,
 )
 from .io_utils import ensure_dir
+from .slate_loader import find_single_json_in_data, build_start_time_map, extract_games_table
 
 logger = setup_logger(__name__)
 
@@ -46,6 +47,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     # Filters / constraints
     p.add_argument("--min-sum-projection", type=float, default=None,
                    help="Minimum total projection per lineup (replaces --min-player-projection)")
+    p.add_argument("--max-sum-projection", type=float, default=None,
+                   help="Maximum total projection per lineup")
     p.add_argument("--min-sum-ownership", type=float, default=None,
                    help="Fraction 0..1")
     p.add_argument("--max-sum-ownership", type=float, default=None,
@@ -135,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
 
     min_sum_projection = args.min_sum_projection
+    max_sum_projection = args.max_sum_projection
 
     # Normalize list-like arguments
     excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
@@ -169,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         game_stack=args.game_stack,
         game_stack_target=game_stack_target,
         min_sum_projection=min_sum_projection,
+        max_sum_projection=max_sum_projection,
         min_sum_ownership=min_sum_ownership,
         max_sum_ownership=max_sum_ownership,
         min_product_ownership=args.min_product_ownership,
@@ -206,10 +211,35 @@ def main(argv: list[str] | None = None) -> int:
     t0 = time.time()
     lineups = generate_lineups(players, params)
     elapsed = time.time() - t0
-    df = lineups_to_dataframe(lineups)
+    # Load slate start times from a single JSON in data/; enforce presence
+    try:
+        json_path = find_single_json_in_data("data/")
+    except Exception as e:
+        raise SystemExit(str(e))
+    if not json_path:
+        raise SystemExit("No draftables JSON found in data/. Expected exactly one file.")
+    try:
+        start_time_map = build_start_time_map(json_path)
+        games_df = extract_games_table(json_path)
+        logger.info(
+            "Loaded draftables JSON '%s'; start-time entries=%d; games=%d",
+            os.path.basename(json_path),
+            len(start_time_map),
+            len(games_df) if games_df is not None else 0,
+        )
+    except Exception as e:
+        raise SystemExit(f"Failed reading draftables JSON '{json_path}': {e}")
+    df = lineups_to_dataframe(lineups, start_time_map=start_time_map)
     snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
     snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
-    export_workbook(cleaned, params, df, os.path.join(run_dir, "lineups.xlsx"))
+    export_workbook(
+        cleaned,
+        params,
+        df,
+        os.path.join(run_dir, "lineups.xlsx"),
+        start_time_map=start_time_map,
+        games_df=games_df,
+    )
 
     # Human-friendly timing
     if elapsed >= 120:
