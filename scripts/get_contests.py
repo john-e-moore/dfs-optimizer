@@ -157,11 +157,14 @@ def read_entries_first_14_columns(entries_path: Path) -> pd.DataFrame:
 
 
 def compute_unique_slate_id(merged: pd.DataFrame) -> str:
-    # Only consider rows where we matched a contest (dg not null)
-    non_null_dg = merged["dg"].dropna().astype(str).unique().tolist()
-    # Remove any 'nan' string artifacts
-    non_null_dg = [dg for dg in non_null_dg if dg and dg.lower() != "nan"]
-    if len(non_null_dg) != 1:
+    # Only consider rows where we matched a contest (dg not null) and normalize ids
+    raw_values = merged["dg"].dropna().tolist() if "dg" in merged.columns else []
+    normalized_values: List[str] = []
+    for v in raw_values:
+        nv = normalize_contest_id(v)
+        if nv and nv.lower() != "nan" and nv not in normalized_values:
+            normalized_values.append(nv)
+    if len(normalized_values) != 1:
         # Produce a small diagnostic summary
         value_counts = (
             merged["dg"]
@@ -173,10 +176,10 @@ def compute_unique_slate_id(merged: pd.DataFrame) -> str:
             else {}
         )
         raise SystemExit(
-            f"Expected exactly one slate id (dg) across matched contests; found: {non_null_dg or 'none'} "
+            f"Expected exactly one slate id (dg) across matched contests; found: {normalized_values or 'none'} "
             f"with counts {value_counts}. Ensure all contests are from the same slate."
         )
-    return non_null_dg[0]
+    return normalized_values[0]
 
 
 def classify_field_size(num_entrants: Optional[float], thresholds: Dict[str, Dict[str, Any]]) -> str:
