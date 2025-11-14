@@ -12,14 +12,34 @@ import pandas as pd
 def find_single_json_in_data(data_dir: str = "data/") -> Optional[str]:
     # Find JSON files directly under the data directory (non-recursive)
     pattern = os.path.join(data_dir, "*.json")
-    files = sorted(glob.glob(pattern))
-    if len(files) == 0:
+    files_all = sorted(glob.glob(pattern))
+    if len(files_all) == 0:
         return None
+    # Ignore the contests index; we want the draftables (slate) JSON
+    files = [f for f in files_all if os.path.basename(f) != "contests.json"]
+    if len(files) == 1:
+        return files[0]
     if len(files) > 1:
-        raise ValueError(
-            "Expected exactly one draftables JSON in data/, found: " + ", ".join(os.path.basename(f) for f in files)
-        )
-    return files[0]
+        # Prefer files that look like true draftables JSON (contain top-level 'draftables' list)
+        def looks_like_draftables(path: str) -> bool:
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    payload = json.load(fh)
+                return isinstance(payload, dict) and isinstance(payload.get("draftables"), list)
+            except Exception:
+                return False
+        candidates = [p for p in files if looks_like_draftables(p)]
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            # Fall back to most recently modified candidate
+            candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+            return candidates[0]
+        # If nothing matched, fall back to the most recent non-contests JSON
+        files.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        return files[0]
+    # If only contests.json exists, we cannot determine a slate file
+    return None
 
 
 def _parse_start_time(value: object) -> Optional[int]:
