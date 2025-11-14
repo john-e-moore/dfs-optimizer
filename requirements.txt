@@ -6,3 +6,5 @@ XlsxWriter
 pulp
 pytest
 pytest-cov
+boto3
+PyYAML
