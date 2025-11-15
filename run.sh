@@ -4,7 +4,7 @@ set -euo pipefail
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/projections_small.csv}"
 : "${LINEUPS:=500}"
-: "${MIN_SALARY:=49600}"
+: "${MIN_SALARY:=49800}"
 : "${STACK:=1}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
