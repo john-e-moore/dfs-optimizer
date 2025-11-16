@@ -37,6 +37,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--lineups", type=int, default=5000)
     p.add_argument("--min-salary", type=int, default=45000)
     p.add_argument("--allow-qb-vs-dst", action="store_true")
+    p.add_argument("--allow-rb-vs-dst", action="store_true")
     p.add_argument("--stack", type=int, default=1)
     p.add_argument("--game-stack", type=int, default=0)
     p.add_argument("--game-stack-target", type=str, default=None,
@@ -169,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
         lineup_count=args.lineups,
         min_salary=args.min_salary,
         allow_qb_vs_dst=args.allow_qb_vs_dst,
+        allow_rb_vs_dst=args.allow_rb_vs_dst,
         stack=args.stack,
         game_stack=args.game_stack,
         game_stack_target=game_stack_target,

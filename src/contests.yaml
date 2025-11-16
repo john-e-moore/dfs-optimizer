@@ -5,7 +5,7 @@ small:
   run_1: bash run.sh --ss --lineups 200 --stack 2 --max-weighted-ownership 23 --min-salary 49800
   run_2: bash run.sh --ss --lineups 200 --stack 2 --bringback --max-weighted-ownership 23 --min-salary 49800
   run_3: bash run.sh --ss --lineups 100 --stack 2 --bringback --max-weighted-ownership 23 --min-salary 49800 --game-stack 5
-  run_4: bash run.sh --ss --lineups 20 --stack 3 --bringback --max-weighted-ownership 23 --min-salary 49800
+  run_4: bash run.sh --ss --lineups 40 --stack 3 --bringback --max-weighted-ownership 23 --min-salary 49800
 medium:
   min_entrants: 1000
   max_entrants: 2999
@@ -13,7 +13,7 @@ medium:
   run_2: bash run.sh --ss --lineups 200 --stack 2 --max-weighted-ownership 21 --min-salary 49800
   run_3: bash run.sh --ss --lineups 200 --stack 2 --bringback --max-weighted-ownership 21 --min-salary 49800
   run_4: bash run.sh --ss --lineups 100 --stack 2 --bringback --max-weighted-ownership 21 --min-salary 49800 --game-stack 5
-  run_5: bash run.sh --ss --lineups 20 --stack 3 --bringback --max-weighted-ownership 21 --min-salary 49800
+  run_5: bash run.sh --ss --lineups 40 --stack 3 --bringback --max-weighted-ownership 21 --min-salary 49800
 large:
   min_entrants: 3000
   max_entrants: 9999
@@ -21,14 +21,14 @@ large:
   run_2: bash run.sh --ss --lineups 200 --stack 1 --bringback --max-weighted-ownership 19 --min-salary 49800
   run_3: bash run.sh --ss --lineups 200 --stack 2 --max-weighted-ownership 19 --min-salary 49800
   run_4: bash run.sh --ss --lineups 100 --stack 2 --bringback --max-weighted-ownership 19 --min-salary 49800 --game-stack 5
-  run_5: bash run.sh --ss --lineups 20 --stack 3 --bringback --max-weighted-ownership 19 --min-salary 49800
+  run_5: bash run.sh --ss --lineups 40 --stack 3 --bringback --max-weighted-ownership 19 --min-salary 49800
 extra_large:
   min_entrants: 10000
   max_entrants: 19999
   run_1: bash run.sh --ss --lineups 200 --stack 1 --max-weighted-ownership 18 --min-salary 49800
   run_2: bash run.sh --ss --lineups 200 --stack 1 --bringback --max-weighted-ownership 18 --min-salary 49800
   run_3: bash run.sh --ss --lineups 100 --stack 2 --bringback --max-weighted-ownership 18 --min-salary 49800 --game-stack 5
-  run_4: bash run.sh --ss --lineups 20 --stack 3 --bringback --max-weighted-ownership 18 --min-salary 49800
+  run_4: bash run.sh --ss --lineups 40 --stack 3 --bringback --max-weighted-ownership 18 --min-salary 49800
 lottery:
   min_entrants: 20000
   max_entrants: 99999999
