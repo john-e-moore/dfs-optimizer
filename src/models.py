@@ -27,6 +27,7 @@ class Parameters:
     lineup_count: int = 5000
     min_salary: int = 45000
     allow_qb_vs_dst: bool = False
+    allow_rb_vs_dst: bool = False
     stack: int = 1
     game_stack: int = 0
     game_stack_target: Optional[str] = None

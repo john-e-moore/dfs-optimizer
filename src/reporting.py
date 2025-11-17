@@ -21,6 +21,7 @@ def build_parameters_df(params: Parameters) -> pd.DataFrame:
         "lineup_count",
         "min_salary",
         "allow_qb_vs_dst",
+        "allow_rb_vs_dst",
         "stack",
         "game_stack",
         "min_sum_projection",

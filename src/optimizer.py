@@ -320,6 +320,16 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
                     <= 1
                 )
 
+    # Disallow RB vs opposing DST if configured
+    if not getattr(params, "allow_rb_vs_dst", False):
+        for team, rb_idxs in team_to_rb_idxs.items():
+            opp_dst_idxs = dst_opp_to_idxs.get(team, [])
+            if not opp_dst_idxs:
+                continue
+            for r in rb_idxs:
+                for d in opp_dst_idxs:
+                    prob += x[r] + x[d] <= 1
+
     # Minimum players by team
     if params.min_players_by_team:
         for t, m in params.min_players_by_team.items():

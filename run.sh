@@ -4,7 +4,7 @@ set -euo pipefail
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/projections_small.csv}"
 : "${LINEUPS:=500}"
-: "${MIN_SALARY:=49600}"
+: "${MIN_SALARY:=49800}"
 : "${STACK:=1}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
@@ -12,6 +12,7 @@ set -euo pipefail
 
 # Optional flags (left empty to use defaults); environment can override
 : "${ALLOW_QB_VS_DST:=}"
+: "${ALLOW_RB_VS_DST:=}"
 : "${MIN_SUM_PROJECTION:=}"
 : "${MAX_SUM_PROJECTION:=}"
 : "${MIN_SUM_OWNERSHIP:=}"
@@ -48,6 +49,7 @@ ARGS=(
 
 # Conditionally add optional flags if variables are set
 [[ -n "$ALLOW_QB_VS_DST" ]] && ARGS+=(--allow-qb-vs-dst)
+[[ -n "$ALLOW_RB_VS_DST" ]] && ARGS+=(--allow-rb-vs-dst)
 [[ -n "$MIN_SUM_PROJECTION" ]] && ARGS+=(--min-sum-projection "$MIN_SUM_PROJECTION")
 [[ -n "$MAX_SUM_PROJECTION" ]] && ARGS+=(--max-sum-projection "$MAX_SUM_PROJECTION")
 [[ -n "$MIN_SUM_OWNERSHIP" ]] && ARGS+=(--min-sum-ownership "$MIN_SUM_OWNERSHIP")

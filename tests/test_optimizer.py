@@ -89,3 +89,35 @@ def test_lineup_uniqueness():
         a = set(p.display_name() for p in lineups[0].players)
         b = set(p.display_name() for p in lineups[1].players)
         assert a != b
+
+
+def test_rb_vs_dst_constraint_disallows_when_false():
+    df = synthetic_players_df()
+    players = players_from_df(df)
+    # Force inclusion of one RB from A and one RB from B so that any DST choice
+    # would conflict with exactly one RB if RB-vs-DST is disallowed.
+    params = Parameters(
+        lineup_count=1,
+        min_salary=43000,
+        allow_qb_vs_dst=True,
+        allow_rb_vs_dst=False,
+        included_players={"RB1", "RB3"},
+    )
+    lineups = generate_lineups(players, params)
+    # No feasible lineup should exist due to conflicting constraints
+    assert len(lineups) == 0
+
+
+def test_rb_vs_dst_constraint_allows_when_true():
+    df = synthetic_players_df()
+    players = players_from_df(df)
+    params = Parameters(
+        lineup_count=1,
+        min_salary=43000,
+        allow_qb_vs_dst=True,
+        allow_rb_vs_dst=True,
+        included_players={"RB1", "RB3"},
+    )
+    lineups = generate_lineups(players, params)
+    # With flag enabled, at least one lineup should be feasible
+    assert len(lineups) >= 1
