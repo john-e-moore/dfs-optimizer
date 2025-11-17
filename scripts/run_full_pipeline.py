@@ -53,21 +53,29 @@ def parse_args() -> argparse.Namespace:
 	p = argparse.ArgumentParser(description="Run full DFS pipeline to produce DK-uploadable CSV")
 	p.add_argument("--date", required=True, help="Slate date in YYYY-MM-DD (used by scripts/get_contests.py)")
 	p.add_argument("--random-seed", type=int, default=None, help="Optional seed for diversification")
+	p.add_argument("--showdown", action="store_true", help="Use showdown YAML (src/contests-showdown.yaml)")
 	return p.parse_args()
 
 
-def ensure_inputs() -> None:
+def _contests_yaml_path(showdown: bool) -> Path:
+	return PROJECT_ROOT / "src" / ("contests-showdown.yaml" if showdown else "contests.yaml")
+
+
+def ensure_inputs(showdown: bool) -> None:
 	if not DK_ENTRIES_PATH.exists():
 		_fail(f"Missing required DK entries file: {DK_ENTRIES_PATH}")
 	ss_files = glob.glob(str(DATA_DIR / "NFL_*.csv"))
 	if not ss_files:
 		_fail(f"Missing SaberSim projections; place at least one file matching {DATA_DIR/'NFL_*.csv'}")
-	if not CONTESTS_YAML_PATH.exists():
-		_fail(f"Missing contests.yaml at {CONTESTS_YAML_PATH}")
+	yaml_path = _contests_yaml_path(showdown)
+	if not yaml_path.exists():
+		_fail(f"Missing contests YAML at {yaml_path}")
 
 
-def run_get_contests(date_str: str) -> None:
+def run_get_contests(date_str: str, showdown: bool) -> None:
 	cmd = [_pybin(), str(PROJECT_ROOT / "scripts" / "get_contests.py"), date_str]
+	if showdown:
+		cmd.append("--showdown")
 	_log(f"Downloading and classifying contests: {' '.join(cmd)}")
 	try:
 		subprocess.run(cmd, cwd=str(PROJECT_ROOT), check=True)
@@ -95,11 +103,11 @@ def load_classification_info() -> Tuple[pd.DataFrame, Dict[str, int], List[str]]
 	return df, quotas, present_labels
 
 
-def read_yaml_runs() -> Dict[str, Dict[str, str]]:
-	with open(CONTESTS_YAML_PATH, "r", encoding="utf-8") as f:
+def read_yaml_runs(yaml_path: Path) -> Dict[str, Dict[str, str]]:
+	with open(yaml_path, "r", encoding="utf-8") as f:
 		yml = yaml.safe_load(f) or {}
 	if not isinstance(yml, dict):
-		_fail(f"Unexpected YAML structure in {CONTESTS_YAML_PATH}")
+		_fail(f"Unexpected YAML structure in {yaml_path}")
 	# Keep sections: each label maps to dict of run_* plus thresholds
 	out: Dict[str, Dict[str, str]] = {}
 	for label, cfg in yml.items():
@@ -384,18 +392,20 @@ def main() -> int:
 	args = parse_args()
 	# Shared timestamp across all outputs
 	ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-	ensure_inputs()
+	yaml_path = _contests_yaml_path(args.showdown)
+	yaml_name = yaml_path.name
+	ensure_inputs(args.showdown)
 	# Step 2: contests + classification
-	run_get_contests(args.date)
+	run_get_contests(args.date, args.showdown)
 	entries_classified_df, quotas, present_labels = load_classification_info()
 	_log(f"Field sizes present: {present_labels} | quotas={quotas}")
 	# Step 3: bundle per label present
-	yaml_runs = read_yaml_runs()
+	yaml_runs = read_yaml_runs(yaml_path)
 	files_by_label: Dict[str, Path] = {}
 	source_to_label: Dict[str, str] = {}
 	for label in present_labels:
 		if label not in yaml_runs:
-			_log(f"Warning: label '{label}' not found in contests.yaml; skipping")
+			_log(f"Warning: label '{label}' not found in {yaml_name}; skipping")
 			continue
 		res = bundle_for_label(ts, label, yaml_runs[label])
 		files_by_label[label] = res.outfile

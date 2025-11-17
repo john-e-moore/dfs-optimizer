@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Defaults (match CLI defaults); allow environment overrides if already set
 : "${PROJECTIONS:=data/projections_small.csv}"
-: "${LINEUPS:=250}"
+: "${LINEUPS:=100}"
 : "${MIN_SALARY:=45000}"
-: "${STACK:=0}"
+: "${STACK:=2}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
 : "${OUTDIR:=output}"
@@ -20,7 +20,7 @@ set -euo pipefail
 : "${MIN_PRODUCT_OWNERSHIP:=}"
 : "${MAX_PRODUCT_OWNERSHIP:=}"
 : "${MIN_WEIGHTED_OWNERSHIP:=}"
-: "${MAX_WEIGHTED_OWNERSHIP:=33}" # Range from about 18-24 in my tournaments; between about 500-5000 players in the field. 16-ish for really big ones?
+: "${MAX_WEIGHTED_OWNERSHIP:=}" # Range from about 18-24 in my tournaments; between about 500-5000 players in the field. 16-ish for really big ones?
 : "${EXCLUDE_PLAYERS:=}" # "Joe Burrow,Patrick Mahomes"
 : "${INCLUDE_PLAYERS:=}"
 : "${EXCLUDE_TEAMS:=}"

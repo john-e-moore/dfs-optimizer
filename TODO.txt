@@ -1,15 +1,12 @@
-- Curl slate info from DraftKings and assign game time to players_pool
-- Automatically put latest window players in FLEX
+- Showdown
+ - make a showdown-contests.yaml
+ - start by constraining just weighted ownership. 
+  - anchors: ~2500 player contests, sum ownership 140-170%. Up to 200.
+  - 
+ - extend diversification and full pipeline to handle showdown.
+
+
 - Late swap: generate top late swaps. I guess I only need a handful of options here:
  - the max projection, max chalk, and max projection with various ownership constraints
    (all maintaining at least a single stack I guess)
 
-(0) New branch automation
-(1) Download the day's contests json from s3
-(2) Read DKEntries.csv into dataframe
-(3) Look up each contest in contests.json using the 'Contest ID' (will be 'id' field in contests.json)
-(4) These contests should all have the same value for "dg" -- this is the slate ID
-(5) Download the players ('playables') for that slate -- {dg}.json from the same folder we got contests.json 
-(6) Join number of entrants onto DKEntries dataframe ("m" field in contests.json)
-  - 'num_entrants'
-  - 'field_size_classification'

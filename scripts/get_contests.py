@@ -52,6 +52,11 @@ def parse_args() -> argparse.Namespace:
         "date",
         help="Slate date in YYYY-MM-DD format",
     )
+    parser.add_argument(
+        "--showdown",
+        action="store_true",
+        help="Use showdown YAML (src/contests-showdown.yaml) for classification thresholds",
+    )
     return parser.parse_args()
 
 
@@ -144,11 +149,13 @@ def load_contests_frame(contests_path: Path) -> pd.DataFrame:
     return pd.DataFrame.from_records(records)
 
 
-def read_entries_first_14_columns(entries_path: Path) -> pd.DataFrame:
+def read_entries_first_n_columns(entries_path: Path, n: int) -> pd.DataFrame:
     try:
-        df = pd.read_csv(entries_path, usecols=range(14))
+        df_all = pd.read_csv(entries_path)
     except FileNotFoundError as exc:
         raise SystemExit(f"Missing input file: {entries_path}") from exc
+    # Take the first N columns by position to avoid issues with duplicate names
+    df = df_all.iloc[:, :n].copy()
     if "Contest ID" not in df.columns:
         raise SystemExit("Expected 'Contest ID' column in DKEntries.csv (with header).")
     # Normalize IDs on the entries side
@@ -231,8 +238,8 @@ def main() -> None:
     print(f"Downloading contests: s3://{aws.bucket}/{contests_key} -> {CONTESTS_JSON_LOCAL}")
     download_s3_object(s3_client, aws.bucket, contests_key, CONTESTS_JSON_LOCAL)
 
-    # 2) Read entries (first 14 columns)
-    entries_df = read_entries_first_14_columns(DK_ENTRIES_CSV)
+    # 2) Read entries (first 10 for showdown, otherwise first 14)
+    entries_df = read_entries_first_n_columns(DK_ENTRIES_CSV, 10 if args.showdown else 14)
     original_columns: List[str] = list(entries_df.columns)
 
     # 3) Load contests and merge
@@ -256,7 +263,8 @@ def main() -> None:
     download_s3_object(s3_client, aws.bucket, slate_key, slate_file_local)
 
     # 6) Classification
-    thresholds = load_classification_thresholds(CONTESTS_YAML_PATH)
+    yaml_path = Path("src") / ("contests-showdown.yaml" if args.showdown else "contests.yaml")
+    thresholds = load_classification_thresholds(yaml_path)
     merged_df["field_size_classification"] = merged_df["num_entrants"].map(
         lambda v: classify_field_size(v, thresholds)
     )
