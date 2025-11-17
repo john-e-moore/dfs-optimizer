@@ -34,6 +34,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Path to projections CSV")
     p.add_argument("--ss", "--sabersim", dest="sabersim", action="store_true",
                    help="Load from latest data/NFL_*.csv SaberSim file instead of default projections")
+    p.add_argument("--showdown", action="store_true",
+                   help="Optimize DraftKings showdown (CPT + 5 FLEX) using SaberSim CSV")
     p.add_argument("--lineups", type=int, default=5000)
     p.add_argument("--min-salary", type=int, default=45000)
     p.add_argument("--allow-qb-vs-dst", action="store_true")
@@ -140,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
 
     min_sum_projection = args.min_sum_projection
     max_sum_projection = args.max_sum_projection
+    is_showdown = bool(getattr(args, "showdown", False))
 
     # Normalize list-like arguments
     excluded_players: Set[str] = set(_parse_multi(args.exclude_players)) if args.exclude_players is not None else set()
@@ -193,55 +196,109 @@ def main(argv: list[str] | None = None) -> int:
     )
     params.validate()
 
-    # Load projections either from CSV (default) or SaberSim Excel when -ss is set
-    if args.sabersim:
-        try:
-            xlsx_path = find_latest_sabersim_csv("data/", prefix="NFL_")
-        except Exception as e:
-            raise SystemExit(str(e))
-        cleaned = load_and_clean_sabersim_csv(xlsx_path)
-    else:
-        cleaned = load_and_clean(args.projections)
     # Determine run directory
     run_dir = _compute_run_dir(args.outdir)
-    # Save early snapshots to the run directory as well
-    snapshot_cleaned_projections(cleaned, path=os.path.join(run_dir, "cleaned_projections.csv"))
-    players = players_from_df(cleaned)
-    snapshot_players_pool(cleaned, path=os.path.join(run_dir, "players_pool.csv"))
 
-    logger.info("Generating lineups: target=%d", min(params.lineup_count, 5000))
-    t0 = time.time()
-    lineups = generate_lineups(players, params)
-    elapsed = time.time() - t0
-    # Load slate start times from a single JSON in data/; enforce presence
-    try:
-        json_path = find_single_json_in_data("data/")
-    except Exception as e:
-        raise SystemExit(str(e))
-    if not json_path:
-        raise SystemExit("No draftables JSON found in data/. Expected exactly one file.")
-    try:
-        start_time_map = build_start_time_map(json_path)
-        games_df = extract_games_table(json_path)
-        logger.info(
-            "Loaded draftables JSON '%s'; start-time entries=%d; games=%d",
-            os.path.basename(json_path),
-            len(start_time_map),
-            len(games_df) if games_df is not None else 0,
+    if is_showdown:
+        # Showdown mode always loads from latest SaberSim CSV
+        from .sabersim_loader import find_latest_sabersim_csv, load_and_clean_sabersim_csv_showdown
+        from .showdown import entries_from_df as showdown_entries_from_df
+        from .showdown import generate_lineups_showdown, lineups_to_dataframe_showdown
+
+        try:
+            csv_path = find_latest_sabersim_csv("data/", prefix="NFL_")
+        except Exception as e:
+            raise SystemExit(str(e))
+        cleaned = load_and_clean_sabersim_csv_showdown(csv_path)
+        snapshot_cleaned_projections(cleaned, path=os.path.join(run_dir, "cleaned_projections.csv"))
+        snapshot_players_pool(cleaned, path=os.path.join(run_dir, "players_pool.csv"))
+
+        # Generate showdown lineups
+        logger.info("Generating showdown lineups: target=%d", min(params.lineup_count, 5000))
+        t0 = time.time()
+        entries = showdown_entries_from_df(cleaned)
+        lineups = generate_lineups_showdown(entries, params)
+        elapsed = time.time() - t0
+
+        # Load slate info
+        try:
+            json_path = find_single_json_in_data("data/")
+        except Exception as e:
+            raise SystemExit(str(e))
+        if not json_path:
+            raise SystemExit("No draftables JSON found in data/. Expected exactly one file.")
+        try:
+            start_time_map = build_start_time_map(json_path)
+            games_df = extract_games_table(json_path)
+            logger.info(
+                "Loaded draftables JSON '%s'; start-time entries=%d; games=%d",
+                os.path.basename(json_path),
+                len(start_time_map),
+                len(games_df) if games_df is not None else 0,
+            )
+        except Exception as e:
+            raise SystemExit(f"Failed reading draftables JSON '{json_path}': {e}")
+
+        df = lineups_to_dataframe_showdown(lineups, start_time_map=start_time_map)
+        snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
+        snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
+        export_workbook(
+            cleaned,
+            params,
+            df,
+            os.path.join(run_dir, "lineups.xlsx"),
+            start_time_map=start_time_map,
+            games_df=games_df,
         )
-    except Exception as e:
-        raise SystemExit(f"Failed reading draftables JSON '{json_path}': {e}")
-    df = lineups_to_dataframe(lineups, start_time_map=start_time_map)
-    snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
-    snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
-    export_workbook(
-        cleaned,
-        params,
-        df,
-        os.path.join(run_dir, "lineups.xlsx"),
-        start_time_map=start_time_map,
-        games_df=games_df,
-    )
+    else:
+        # Classic mode
+        # Load projections either from CSV (default) or SaberSim CSV when -ss is set
+        if args.sabersim:
+            try:
+                xlsx_path = find_latest_sabersim_csv("data/", prefix="NFL_")
+            except Exception as e:
+                raise SystemExit(str(e))
+            cleaned = load_and_clean_sabersim_csv(xlsx_path)
+        else:
+            cleaned = load_and_clean(args.projections)
+        # Save early snapshots to the run directory as well
+        snapshot_cleaned_projections(cleaned, path=os.path.join(run_dir, "cleaned_projections.csv"))
+        players = players_from_df(cleaned)
+        snapshot_players_pool(cleaned, path=os.path.join(run_dir, "players_pool.csv"))
+
+        logger.info("Generating lineups: target=%d", min(params.lineup_count, 5000))
+        t0 = time.time()
+        lineups = generate_lineups(players, params)
+        elapsed = time.time() - t0
+        # Load slate start times from a single JSON in data/; enforce presence
+        try:
+            json_path = find_single_json_in_data("data/")
+        except Exception as e:
+            raise SystemExit(str(e))
+        if not json_path:
+            raise SystemExit("No draftables JSON found in data/. Expected exactly one file.")
+        try:
+            start_time_map = build_start_time_map(json_path)
+            games_df = extract_games_table(json_path)
+            logger.info(
+                "Loaded draftables JSON '%s'; start-time entries=%d; games=%d",
+                os.path.basename(json_path),
+                len(start_time_map),
+                len(games_df) if games_df is not None else 0,
+            )
+        except Exception as e:
+            raise SystemExit(f"Failed reading draftables JSON '{json_path}': {e}")
+        df = lineups_to_dataframe(lineups, start_time_map=start_time_map)
+        snapshot_lineups(lineups, path=os.path.join(run_dir, "lineups.json"))
+        snapshot_parameters(params, path=os.path.join(run_dir, "parameters.json"))
+        export_workbook(
+            cleaned,
+            params,
+            df,
+            os.path.join(run_dir, "lineups.xlsx"),
+            start_time_map=start_time_map,
+            games_df=games_df,
+        )
 
     # Human-friendly timing
     if elapsed >= 120:

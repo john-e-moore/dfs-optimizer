@@ -95,7 +95,9 @@ def build_players_exposure_df(
 ) -> pd.DataFrame:
     if lineups_df is None or lineups_df.empty:
         return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": [], "Start Time": []})
-    player_cols = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
+    classic_cols = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
+    showdown_cols = ["CPT", "FLEX1", "FLEX2", "FLEX3", "FLEX4", "FLEX5"]
+    player_cols = classic_cols + showdown_cols
     present_cols = [c for c in player_cols if c in lineups_df.columns]
     if not present_cols:
         return pd.DataFrame({"Player": [], "Position": [], "Team": [], "# Lineups": [], "% Lineups": [], "Start Time": []})

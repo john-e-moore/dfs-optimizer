@@ -1,5 +1,32 @@
 ## DFS Lineup Optimizer (DraftKings NFL)
 
+## Showdown Mode (DraftKings CPT + 5 FLEX)
+
+Enable showdown optimization using SaberSim `NFL_*.csv` files in `data/`. The optimizer auto-detects the latest CSV, labels CPT/FLEX, scales captain projections, and builds 6-man lineups under the $50k cap.
+
+- Run via the helper script:
+
+```bash
+bash run.sh --ss --showdown
+```
+
+Or with environment toggles:
+
+```bash
+SABERSIM=1 SHOWDOWN=1 bash run.sh
+```
+
+- Run directly:
+
+```bash
+python -m src.cli --ss --showdown --lineups 500 --min-salary 45000
+```
+
+Outputs are written to `output/<timestamp>/lineups.xlsx` and include:
+- CPT, FLEX1..FLEX5 columns
+- Players exposure tab (supports showdown columns)
+- Parameters and optional DK Lineups tab (best-effort mapping)
+
 This project builds optimal daily fantasy NFL lineups for the DraftKings Main Slate. It maximizes projected points while respecting roster rules, salary cap, and optional stacking constraints. Constraints like ownership bounds are enforced during optimization, and a clear Excel report is produced with multiple tabs.
 
 ### What it does (in plain terms)

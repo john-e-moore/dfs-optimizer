@@ -108,3 +108,63 @@ def load_and_clean_sabersim_csv(path: str) -> pd.DataFrame:
     return out
 
 
+def load_and_clean_sabersim_csv_showdown(path: str) -> pd.DataFrame:
+    """
+    Load SaberSim CSV and prepare showdown-specific cleaned data:
+    - Label higher-salary row per (Name, Team) as CPT, the other as FLEX in 'ShowdownRole'
+    - Ensure CPT projection reflects 1.5x scoring relative to FLEX (within tolerance)
+    - Drop rows with zero projection
+    """
+    base = load_and_clean_sabersim_csv(path)
+    if base.empty:
+        return base
+    df = base.copy()
+    # Initialize role as FLEX
+    df["ShowdownRole"] = "FLEX"
+    # Assign CPT to max-salary row within each (Name, Team) group
+    try:
+        idx_max_salary = df.groupby(["Name", "Team"])["Salary"].idxmax()
+        df.loc[idx_max_salary, "ShowdownRole"] = "CPT"
+    except Exception:
+        # Fallback: if grouping fails, leave all as FLEX
+        pass
+    # Adjust CPT projection to 1.5x FLEX if not already within tolerance
+    try:
+        # Compute reference FLEX projection per (Name, Team): choose min-salary row as FLEX baseline
+        flex_ref = (
+            df[df["ShowdownRole"] == "FLEX"]
+            .sort_values(["Name", "Team", "Salary"], ascending=[True, True, True])
+            .groupby(["Name", "Team"], as_index=False)
+            .first()[["Name", "Team", "Projection"]]
+            .rename(columns={"Projection": "FlexProjectionRef"})
+        )
+        df = df.merge(flex_ref, on=["Name", "Team"], how="left")
+        tol_low = 1.45
+        tol_high = 1.55
+        mask_cpt = df["ShowdownRole"] == "CPT"
+        # Only adjust when we have a valid flex projection reference > 0
+        with pd.option_context("mode.use_inf_as_na", True):
+            valid_ref = mask_cpt & df["FlexProjectionRef"].notna() & (df["FlexProjectionRef"] > 0)
+        # Where CPT projection not within tolerance, set to 1.5x flex ref
+        ratio = pd.Series(float("nan"), index=df.index)
+        ratio.loc[valid_ref] = df.loc[valid_ref, "Projection"] / df.loc[valid_ref, "FlexProjectionRef"]
+        need_adjust = valid_ref & ~((ratio >= tol_low) & (ratio <= tol_high))
+        df.loc[need_adjust, "Projection"] = 1.5 * df.loc[need_adjust, "FlexProjectionRef"]
+        # Drop helper column
+        df = df.drop(columns=["FlexProjectionRef"])
+    except Exception:
+        # If anything fails here, proceed without rescaling
+        if "FlexProjectionRef" in df.columns:
+            try:
+                df = df.drop(columns=["FlexProjectionRef"])
+            except Exception:
+                pass
+    # Drop zero-projection rows
+    before = len(df)
+    df = df[df["Projection"] != 0].copy()
+    after = len(df)
+    if after < before:
+        logger.info("Showdown cleaner dropped %d rows with zero projection", before - after)
+    return df
+
+
