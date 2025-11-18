@@ -100,13 +100,41 @@ def entries_from_df(df: pd.DataFrame) -> List[ShowdownEntry]:
     return entries
 
 
-def _matches_selector(entry: ShowdownEntry, selector: Selector) -> bool:
+def _resolve_team_aliases(lineup: List[ShowdownEntry]) -> Dict[str, str]:
+    """
+    Resolve dynamic team aliases for showdown DSL rules.
+
+    For single-game showdown slates, interpret:
+      - TEAM_A as the CPT player's team
+      - TEAM_B as the CPT player's opponent
+
+    The mapping is per-lineup and derived from the unique CPT entry.
+    If a CPT or opponent is missing or ambiguous, return an empty mapping.
+    """
+    aliases: Dict[str, str] = {}
+    cpt_entries = [e for e in lineup if e.role.upper() == "CPT"]
+    if len(cpt_entries) != 1:
+        return aliases
+    cpt = cpt_entries[0]
+    if cpt.team:
+        aliases["TEAM_A"] = cpt.team.upper()
+    if cpt.opponent:
+        aliases["TEAM_B"] = cpt.opponent.upper()
+    return aliases
+
+
+def _matches_selector(entry: ShowdownEntry, selector: Selector, team_aliases: Dict[str, str] | None = None) -> bool:
+    team_aliases = team_aliases or {}
     if selector.slot is not None:
         # In showdown CSV, CPT vs FLEX is encoded via role
         if selector.slot.upper() != entry.role.upper():
             return False
-    if selector.team is not None and selector.team.upper() != entry.team.upper():
-        return False
+    if selector.team is not None:
+        team_key = selector.team.upper()
+        # Resolve dynamic aliases like TEAM_A/TEAM_B to concrete team codes
+        concrete_team = team_aliases.get(team_key, team_key)
+        if concrete_team != entry.team.upper():
+            return False
     if selector.pos is not None and selector.pos.upper() != entry.position.upper():
         return False
     if selector.pos_in is not None:
@@ -119,12 +147,12 @@ def _matches_selector(entry: ShowdownEntry, selector: Selector) -> bool:
     return True
 
 
-def _count_for_selector(lineup: List[ShowdownEntry], selector: Selector) -> int:
-    return sum(1 for e in lineup if _matches_selector(e, selector))
+def _count_for_selector(lineup: List[ShowdownEntry], selector: Selector, team_aliases: Dict[str, str] | None = None) -> int:
+    return sum(1 for e in lineup if _matches_selector(e, selector, team_aliases=team_aliases))
 
 
-def _check_count(lineup: List[ShowdownEntry], cond: CountCondition) -> bool:
-    c = _count_for_selector(lineup, cond.selector)
+def _check_count(lineup: List[ShowdownEntry], cond: CountCondition, team_aliases: Dict[str, str] | None = None) -> bool:
+    c = _count_for_selector(lineup, cond.selector, team_aliases=team_aliases)
     if cond.min is not None and c < cond.min:
         return False
     if cond.max is not None and c > cond.max:
@@ -132,32 +160,33 @@ def _check_count(lineup: List[ShowdownEntry], cond: CountCondition) -> bool:
     return True
 
 
-def _check_forbid(lineup: List[ShowdownEntry], cond: ForbidCondition) -> bool:
-    left_count = _count_for_selector(lineup, cond.left)
-    right_count = _count_for_selector(lineup, cond.right)
+def _check_forbid(lineup: List[ShowdownEntry], cond: ForbidCondition, team_aliases: Dict[str, str] | None = None) -> bool:
+    left_count = _count_for_selector(lineup, cond.left, team_aliases=team_aliases)
+    right_count = _count_for_selector(lineup, cond.right, team_aliases=team_aliases)
     # Forbid any lineup that has at least one from each side
     return not (left_count >= 1 and right_count >= 1)
 
 
-def _check_clause(lineup: List[ShowdownEntry], clause) -> bool:
+def _check_clause(lineup: List[ShowdownEntry], clause, team_aliases: Dict[str, str] | None = None) -> bool:
     if isinstance(clause, CountCondition):
-        return _check_count(lineup, clause)
+        return _check_count(lineup, clause, team_aliases=team_aliases)
     if isinstance(clause, ForbidCondition):
-        return _check_forbid(lineup, clause)
+        return _check_forbid(lineup, clause, team_aliases=team_aliases)
     if isinstance(clause, AnyOf):
-        return any(_check_clause(lineup, opt) for opt in clause.options)
+        return any(_check_clause(lineup, opt, team_aliases=team_aliases) for opt in clause.options)
     # Unknown clause type – be conservative and treat as satisfied
     return True
 
 
 def _violated_rules(lineup: List[ShowdownEntry], rules: Dict[str, ConstraintRule]) -> Tuple[bool, List[str]]:
     violated: List[str] = []
+    team_aliases = _resolve_team_aliases(lineup)
     for name, rule in rules.items():
         # If there is a 'when' clause and it is false, rule is vacuously satisfied
-        if rule.when is not None and not _check_count(lineup, rule.when):
+        if rule.when is not None and not _check_count(lineup, rule.when, team_aliases=team_aliases):
             continue
         # All enforce clauses must be satisfied
-        ok = all(_check_clause(lineup, clause) for clause in rule.enforce)
+        ok = all(_check_clause(lineup, clause, team_aliases=team_aliases) for clause in rule.enforce)
         if not ok:
             violated.append(name)
     return (len(violated) > 0, violated)
@@ -306,6 +335,16 @@ def generate_lineups_showdown(
                     team_options = []
                     break
                 sel = opt.selector
+                # Do not encode rules that use dynamic team aliases (TEAM_A/TEAM_B);
+                # these depend on the CPT context and are enforced via post-solve filtering.
+                if sel.team in {"TEAM_A", "TEAM_B"}:
+                    team_options = []
+                    logger.info(
+                        "Skipping MILP encoding for showdown rule '%s' due to dynamic team alias '%s'",
+                        rule_name,
+                        sel.team,
+                    )
+                    break
                 # Require team-only selector: no slot / pos / pos_in / type filters
                 if sel.team is None:
                     team_options = []
