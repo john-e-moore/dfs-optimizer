@@ -8,7 +8,7 @@ small:
     runs:
       - lineups: 20
         max_weighted_ownership: 34
-        min_salary: 46000
+        min_salary: 48500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -22,6 +22,19 @@ small:
                 selector:
                   type: DST
                   team: TEAM_B
+
+      no_cpt_qbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
 
       qbA_cpt_requires_2_rb_wr_te_A:
         when:
@@ -38,17 +51,60 @@ small:
                 pos_in: [RB, WR, TE]
               min: 2
 
-      #min_5_from_one_team:
-        #enforce:
-        #  - any_of:
-        #      - count:
-        #          selector:
-        #            team: TEAM_A
-        #          min: 5
-        #      - count:
-        #          selector:
-        #            team: TEAM_B
-        #          min: 5
+      qbB_cpt_requires_2_rb_wr_te_B:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      qbA_qb_requires_wr_te_A:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [WR, TE]
+              min: 1
+
+      qbB_qb_requires_wr_te_B:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [WR, TE]
+              min: 1
+
+      # min_5_from_one_team:
+      #   enforce:
+      #     - any_of:
+      #         - count:
+      #             selector:
+      #               team: TEAM_A
+      #             min: 5
+      #         - count:
+      #             selector:
+      #               team: TEAM_B
+      #             min: 5
 
 medium:
   min_entrants: 1000
@@ -59,7 +115,7 @@ medium:
     runs:
       - lineups: 20
         max_weighted_ownership: 32
-        min_salary: 46000
+        min_salary: 48000
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -73,6 +129,19 @@ medium:
                 selector:
                   type: DST
                   team: TEAM_B
+
+      no_cpt_qbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
 
       qbA_cpt_requires_2_rb_wr_te_A:
         when:
@@ -89,17 +158,60 @@ medium:
                 pos_in: [RB, WR, TE]
               min: 2
 
-      #min_5_from_one_team:
-        #enforce:
-        #   - any_of:
-        #      - count:
-        #          selector:
-        #            team: TEAM_A
-        #          min: 5
-        #      - count:
-        #          selector:
-        #            team: TEAM_B
-        #          min: 5
+      qbB_cpt_requires_2_rb_wr_te_B:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      qbA_qb_requires_wr_te_A:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [WR, TE]
+              min: 1
+
+      qbB_qb_requires_wr_te_B:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [WR, TE]
+              min: 1
+
+      # min_5_from_one_team:
+      #   enforce:
+      #     - any_of:
+      #         - count:
+      #             selector:
+      #               team: TEAM_A
+      #             min: 5
+      #         - count:
+      #             selector:
+      #               team: TEAM_B
+      #             min: 5
 
 large:
   min_entrants: 3000
@@ -110,7 +222,7 @@ large:
     runs:
       - lineups: 20
         max_weighted_ownership: 31
-        min_salary: 46000
+        min_salary: 47500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -124,6 +236,19 @@ large:
                 selector:
                   type: DST
                   team: TEAM_B
+
+      no_cpt_qbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
 
       qbA_cpt_requires_2_rb_wr_te_A:
         when:
@@ -140,17 +265,60 @@ large:
                 pos_in: [RB, WR, TE]
               min: 2
 
-      #min_5_from_one_team:
-        #enforce:
-        #   - any_of:
-        #      - count:
-        #          selector:
-        #            team: TEAM_A
-        #          min: 5
-        #      - count:
-        #          selector:
-        #            team: TEAM_B
-        #          min: 5
+      qbB_cpt_requires_2_rb_wr_te_B:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      qbA_qb_requires_wr_te_A:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [WR, TE]
+              min: 1
+
+      qbB_qb_requires_wr_te_B:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [WR, TE]
+              min: 1
+
+      # min_5_from_one_team:
+      #   enforce:
+      #     - any_of:
+      #         - count:
+      #             selector:
+      #               team: TEAM_A
+      #             min: 5
+      #         - count:
+      #             selector:
+      #               team: TEAM_B
+      #             min: 5
 
 extra_large:
   min_entrants: 10000
@@ -161,7 +329,7 @@ extra_large:
     runs:
       - lineups: 20
         max_weighted_ownership: 30
-        min_salary: 46000
+        min_salary: 47000
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -175,6 +343,19 @@ extra_large:
                 selector:
                   type: DST
                   team: TEAM_B
+
+      no_cpt_qbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
 
       qbA_cpt_requires_2_rb_wr_te_A:
         when:
@@ -191,17 +372,60 @@ extra_large:
                 pos_in: [RB, WR, TE]
               min: 2
 
-      #min_5_from_one_team:
-        #enforce:
-        #   - any_of:
-        #      - count:
-        #          selector:
-        #            team: TEAM_A
-        #          min: 5
-        #      - count:
-        #          selector:
-        #            team: TEAM_B
-        #          min: 5
+      qbB_cpt_requires_2_rb_wr_te_B:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      qbA_qb_requires_wr_te_A:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [WR, TE]
+              min: 1
+
+      qbB_qb_requires_wr_te_B:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [WR, TE]
+              min: 1
+
+      # min_5_from_one_team:
+      #   enforce:
+      #     - any_of:
+      #         - count:
+      #             selector:
+      #               team: TEAM_A
+      #             min: 5
+      #         - count:
+      #             selector:
+      #               team: TEAM_B
+      #             min: 5
 
 lottery:
   min_entrants: 40000
@@ -227,6 +451,19 @@ lottery:
                   type: DST
                   team: TEAM_B
 
+      no_cpt_qbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
+
       qbA_cpt_requires_2_rb_wr_te_A:
         when:
           count:
@@ -242,14 +479,57 @@ lottery:
                 pos_in: [RB, WR, TE]
               min: 2
 
-      #min_5_from_one_team:
-        #enforce:
-        #   - any_of:
-        #      - count:
-        #          selector:
-        #            team: TEAM_A
-        #          min: 5
-        #      - count:
-        #          selector:
-        #            team: TEAM_B
-        #          min: 5
+      qbB_cpt_requires_2_rb_wr_te_B:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      qbA_qb_requires_wr_te_A:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [WR, TE]
+              min: 1
+
+      qbB_qb_requires_wr_te_B:
+        when:
+          count:
+            selector:
+              pos: QB
+              team: TEAM_B
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos_in: [WR, TE]
+              min: 1
+
+      # min_5_from_one_team:
+      #   enforce:
+      #     - any_of:
+      #         - count:
+      #             selector:
+      #               team: TEAM_A
+      #             min: 5
+      #         - count:
+      #             selector:
+      #               team: TEAM_B
+      #             min: 5
