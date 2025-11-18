@@ -268,6 +268,82 @@ def generate_lineups_showdown(
             if idxs:
                 prob += pulp.lpSum(x[i] for i in idxs) >= int(m)
 
+    # Encode a subset of showdown DSL rules directly in the MILP model for performance:
+    # - Unconditional rules (no `when`)
+    # - Single `enforce` clause that is an AnyOf
+    # - AnyOf options that are CountConditions with a team-only selector and a `min` value
+    #
+    # Example YAML pattern this supports:
+    #
+    #   min_5_from_one_team:
+    #     enforce:
+    #       - any_of:
+    #           - count:
+    #               selector: { team: TEAM_A }
+    #               min: 5
+    #           - count:
+    #               selector: { team: TEAM_B }
+    #               min: 5
+    #
+    # This is translated into:
+    #   For each option j: sum_{i in team_j} x_i >= min_j * y_j
+    #   And: sum_j y_j >= 1
+    encoded_rule_names: List[str] = []
+    if rules:
+        for rule_name, rule in rules.items():
+            # Only handle unconditional rules with a single AnyOf clause
+            if rule.when is not None:
+                continue
+            if len(rule.enforce) != 1:
+                continue
+            clause = rule.enforce[0]
+            if not isinstance(clause, AnyOf):
+                continue
+
+            team_options: List[Tuple[str, int]] = []
+            for opt in clause.options:
+                if not isinstance(opt, CountCondition):
+                    team_options = []
+                    break
+                sel = opt.selector
+                # Require team-only selector: no slot / pos / pos_in / type filters
+                if sel.team is None:
+                    team_options = []
+                    break
+                if any(
+                    getattr(sel, field) is not None
+                    for field in ("slot", "pos", "pos_in", "type")
+                ):
+                    team_options = []
+                    break
+                if opt.min is None:
+                    team_options = []
+                    break
+                team_options.append((sel.team, int(opt.min)))
+
+            if not team_options:
+                continue
+
+            y_vars: List[pulp.LpVariable] = []
+            for j, (team, min_count) in enumerate(team_options):
+                idxs = team_to_idxs.get(team, [])
+                if not idxs:
+                    continue
+                y = pulp.LpVariable(
+                    f"rule_{rule_name}_opt{j}", lowBound=0, upBound=1, cat="Binary"
+                )
+                y_vars.append(y)
+                prob += pulp.lpSum(x[i] for i in idxs) >= min_count * y
+
+            if y_vars:
+                prob += pulp.lpSum(y_vars) >= 1
+                encoded_rule_names.append(rule_name)
+                logger.info(
+                    "Encoded showdown rule '%s' at solver level for teams=%s",
+                    rule_name,
+                    [team for (team, _m) in team_options],
+                )
+
     active_rules: Dict[str, ConstraintRule] = rules or {}
 
     while len(lineups) < target:

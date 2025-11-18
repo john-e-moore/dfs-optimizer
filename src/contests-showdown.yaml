@@ -6,9 +6,49 @@ small:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 200
+      - lineups: 20
         max_weighted_ownership: 34
         min_salary: 46000
+    rules:
+      no_cpt_qbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      qbA_cpt_requires_2_rb_wr_te_A:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      min_5_from_one_team:
+        enforce:
+          - any_of:
+              - count:
+                  selector:
+                    team: TEAM_A
+                  min: 5
+              - count:
+                  selector:
+                    team: TEAM_B
+                  min: 5
 
 medium:
   min_entrants: 1000
@@ -17,9 +57,49 @@ medium:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 200
+      - lineups: 20
         max_weighted_ownership: 32
         min_salary: 46000
+    rules:
+      no_cpt_qbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      qbA_cpt_requires_2_rb_wr_te_A:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      min_5_from_one_team:
+        enforce:
+          - any_of:
+              - count:
+                  selector:
+                    team: TEAM_A
+                  min: 5
+              - count:
+                  selector:
+                    team: TEAM_B
+                  min: 5
 
 large:
   min_entrants: 3000
@@ -28,7 +108,7 @@ large:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 200
+      - lineups: 20
         max_weighted_ownership: 31
         min_salary: 46000
     rules:
@@ -60,36 +140,116 @@ large:
                 pos_in: [RB, WR, TE]
               min: 2
 
-      min_4_from_one_team:
+      min_5_from_one_team:
         enforce:
           - any_of:
               - count:
                   selector:
                     team: TEAM_A
-                  min: 4
+                  min: 5
               - count:
                   selector:
                     team: TEAM_B
-                  min: 4
+                  min: 5
 
 extra_large:
   min_entrants: 10000
-  max_entrants: 19999
+  max_entrants: 39999
   constraints:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 200
+      - lineups: 20
         max_weighted_ownership: 30
         min_salary: 46000
+    rules:
+      no_cpt_qbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      qbA_cpt_requires_2_rb_wr_te_A:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      min_5_from_one_team:
+        enforce:
+          - any_of:
+              - count:
+                  selector:
+                    team: TEAM_A
+                  min: 5
+              - count:
+                  selector:
+                    team: TEAM_B
+                  min: 5
 
 lottery:
-  min_entrants: 50000
+  min_entrants: 40000
   max_entrants: 300000
   constraints:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 200
+      - lineups: 20
         max_weighted_ownership: 27
         min_salary: 46000
+    rules:
+      no_cpt_qbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      qbA_cpt_requires_2_rb_wr_te_A:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      min_5_from_one_team:
+        enforce:
+          - any_of:
+              - count:
+                  selector:
+                    team: TEAM_A
+                  min: 5
+              - count:
+                  selector:
+                    team: TEAM_B
+                  min: 5

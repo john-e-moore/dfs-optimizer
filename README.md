@@ -96,7 +96,9 @@ large:
   - `any_of`: logical OR across nested clauses.
   - `when`: optional condition (currently only `count`) that must be true before `enforce` clauses apply.
 
-When you run the full pipeline (`scripts/run_full_pipeline.py`) in showdown mode, it reads `contests-showdown.yaml`, passes the appropriate label to `src.cli`, and the showdown optimizer filters out any lineups that violate the active `rules` for that label.
+When you run the full pipeline (`scripts/run_full_pipeline.py`) in showdown mode, it reads `contests-showdown.yaml`, passes the appropriate label to `src.cli`, and the showdown optimizer enforces these rules in two ways:
+- Certain team-count rules of the form “at least N players from TEAM_A **or** TEAM_B” (e.g., `min_5_from_one_team`) are translated into solver-level constraints for efficiency and feasibility.
+- All rules are also checked against each candidate lineup after solve; any violations are rejected and the model is asked for a different solution.
 
 ### What it does (in plain terms)
 - Reads a CSV of player projections (name, team, position, salary, projection, ownership).
