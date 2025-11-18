@@ -9,6 +9,7 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -222,6 +223,8 @@ def bundle_for_label(ts: str, label: str, runs: List[Dict[str, Any]]) -> BundleR
 		run_dir = base_intermediate / run_token
 		run_dir.mkdir(parents=True, exist_ok=True)
 
+		run_start = time.perf_counter()
+
 		env = os.environ.copy()
 		env["OUTDIR"] = str(run_dir)
 		# For showdown runs, propagate the field-size label so src.cli can load
@@ -291,6 +294,8 @@ def bundle_for_label(ts: str, label: str, runs: List[Dict[str, Any]]) -> BundleR
 			cmd = ["bash", "run.sh"]
 			_log(f"Executing ({label}/{run_token}) [structured]: {' '.join(cmd)} with env overrides")
 			subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env, check=False)
+		run_elapsed = time.perf_counter() - run_start
+		_log(f"Completed ({label}/{run_token}) in {run_elapsed:.1f}s")
 		out_xlsx = _find_latest_child_output(run_dir)
 		if out_xlsx and out_xlsx.exists():
 			sources.append((out_xlsx, run_token))
@@ -575,6 +580,7 @@ def build_upload_csv(
 
 
 def main() -> int:
+	script_start = time.perf_counter()
 	args = parse_args()
 	# Shared timestamp across all outputs
 	ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -610,6 +616,8 @@ def main() -> int:
 	# Step 5: compose upload CSV
 	out_csv = build_upload_csv(ts, diversified_path, entries_classified_df, source_to_label)
 	_log(f"DraftKings upload CSV written: {out_csv}")
+	total_elapsed = time.perf_counter() - script_start
+	_log(f"Total pipeline time: {total_elapsed:.1f}s")
 	return 0
 
 
