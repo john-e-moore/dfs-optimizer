@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import pandas as pd
 import pulp
 
 from .logging_utils import setup_logger
+from .constraints import ConstraintRule, CountCondition, ForbidCondition, AnyOf, Selector
 
 logger = setup_logger(__name__)
 
@@ -99,7 +100,75 @@ def entries_from_df(df: pd.DataFrame) -> List[ShowdownEntry]:
     return entries
 
 
-def generate_lineups_showdown(entries: List[ShowdownEntry], params, max_lineups: int | None = None) -> List[ShowdownLineupResult]:
+def _matches_selector(entry: ShowdownEntry, selector: Selector) -> bool:
+    if selector.slot is not None:
+        # In showdown CSV, CPT vs FLEX is encoded via role
+        if selector.slot.upper() != entry.role.upper():
+            return False
+    if selector.team is not None and selector.team.upper() != entry.team.upper():
+        return False
+    if selector.pos is not None and selector.pos.upper() != entry.position.upper():
+        return False
+    if selector.pos_in is not None:
+        if entry.position.upper() not in {p.upper() for p in selector.pos_in}:
+            return False
+    if selector.type is not None:
+        # For simplicity, treat DST and K as positions if present in Position column
+        if selector.type.upper() != entry.position.upper():
+            return False
+    return True
+
+
+def _count_for_selector(lineup: List[ShowdownEntry], selector: Selector) -> int:
+    return sum(1 for e in lineup if _matches_selector(e, selector))
+
+
+def _check_count(lineup: List[ShowdownEntry], cond: CountCondition) -> bool:
+    c = _count_for_selector(lineup, cond.selector)
+    if cond.min is not None and c < cond.min:
+        return False
+    if cond.max is not None and c > cond.max:
+        return False
+    return True
+
+
+def _check_forbid(lineup: List[ShowdownEntry], cond: ForbidCondition) -> bool:
+    left_count = _count_for_selector(lineup, cond.left)
+    right_count = _count_for_selector(lineup, cond.right)
+    # Forbid any lineup that has at least one from each side
+    return not (left_count >= 1 and right_count >= 1)
+
+
+def _check_clause(lineup: List[ShowdownEntry], clause) -> bool:
+    if isinstance(clause, CountCondition):
+        return _check_count(lineup, clause)
+    if isinstance(clause, ForbidCondition):
+        return _check_forbid(lineup, clause)
+    if isinstance(clause, AnyOf):
+        return any(_check_clause(lineup, opt) for opt in clause.options)
+    # Unknown clause type – be conservative and treat as satisfied
+    return True
+
+
+def _violated_rules(lineup: List[ShowdownEntry], rules: Dict[str, ConstraintRule]) -> Tuple[bool, List[str]]:
+    violated: List[str] = []
+    for name, rule in rules.items():
+        # If there is a 'when' clause and it is false, rule is vacuously satisfied
+        if rule.when is not None and not _check_count(lineup, rule.when):
+            continue
+        # All enforce clauses must be satisfied
+        ok = all(_check_clause(lineup, clause) for clause in rule.enforce)
+        if not ok:
+            violated.append(name)
+    return (len(violated) > 0, violated)
+
+
+def generate_lineups_showdown(
+    entries: List[ShowdownEntry],
+    params,
+    max_lineups: Optional[int] = None,
+    rules: Optional[Dict[str, ConstraintRule]] = None,
+) -> List[ShowdownLineupResult]:
     target = max_lineups or params.lineup_count
     index = list(range(len(entries)))
     cpt_idxs = [i for i, e in enumerate(entries) if e.role == "CPT"]
@@ -199,6 +268,8 @@ def generate_lineups_showdown(entries: List[ShowdownEntry], params, max_lineups:
             if idxs:
                 prob += pulp.lpSum(x[i] for i in idxs) >= int(m)
 
+    active_rules: Dict[str, ConstraintRule] = rules or {}
+
     while len(lineups) < target:
         status = prob.solve(solver_cmd)
         if status != pulp.LpStatusOptimal:
@@ -207,6 +278,16 @@ def generate_lineups_showdown(entries: List[ShowdownEntry], params, max_lineups:
         selected_idxs = [i for i in index if x[i].value() == 1]
         assert len(selected_idxs) == 6
         selected = [entries[i] for i in selected_idxs]
+
+        # Apply showdown-specific DSL rules as a post-solve filter.
+        if active_rules:
+            violated, names = _violated_rules(selected, active_rules)
+            if violated:
+                logger.info("Rejecting showdown lineup due to rules: %s", ", ".join(names))
+                previous_solutions.append(selected_idxs)
+                # Forbid this exact combination (same as uniqueness cut)
+                prob += pulp.lpSum(x[i] for i in selected_idxs) <= 5
+                continue
         assert sum(1 for e in selected if e.role == "CPT") == 1
         total_salary = sum(e.salary for e in selected)
         assert params.min_salary <= total_salary <= 50000

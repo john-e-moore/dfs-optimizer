@@ -23,6 +23,7 @@ from .observability import (
 )
 from .io_utils import ensure_dir
 from .slate_loader import find_single_json_in_data, build_start_time_map, extract_games_table
+from .constraints import load_rules_for_label_from_yaml, ConstraintRule
 
 logger = setup_logger(__name__)
 
@@ -196,6 +197,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     params.validate()
 
+    # Optional showdown constraint rules (per field-size label)
+    showdown_rules: Dict[str, ConstraintRule] | None = None
+    if is_showdown:
+        rules_path = os.getenv("DFS_SHOWDOWN_RULES_PATH", "").strip()
+        label = os.getenv("DFS_SHOWDOWN_FIELD_SIZE_LABEL", "").strip()
+        if rules_path and label:
+            try:
+                showdown_rules = load_rules_for_label_from_yaml(rules_path, label)
+                if showdown_rules:
+                    logger.info(
+                        "Loaded %d showdown constraint rule(s) for label '%s' from %s",
+                        len(showdown_rules),
+                        label,
+                        os.path.basename(rules_path),
+                    )
+            except Exception as e:
+                raise SystemExit(f"Failed to load showdown rules from {rules_path} for label '{label}': {e}")
+
     # Determine run directory
     run_dir = _compute_run_dir(args.outdir)
 
@@ -217,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Generating showdown lineups: target=%d", min(params.lineup_count, 5000))
         t0 = time.time()
         entries = showdown_entries_from_df(cleaned)
-        lineups = generate_lineups_showdown(entries, params)
+        lineups = generate_lineups_showdown(entries, params, rules=showdown_rules)
         elapsed = time.time() - t0
 
         # Load slate info

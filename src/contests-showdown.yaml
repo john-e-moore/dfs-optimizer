@@ -2,20 +2,94 @@
 small:
   min_entrants: 0
   max_entrants: 999
-  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 34 --min-salary 46000
+  constraints:
+    projections: sabersim
+    mode: showdown
+    runs:
+      - lineups: 200
+        max_weighted_ownership: 34
+        min_salary: 46000
+
 medium:
   min_entrants: 1000
   max_entrants: 2999
-  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 32 --min-salary 46000
+  constraints:
+    projections: sabersim
+    mode: showdown
+    runs:
+      - lineups: 200
+        max_weighted_ownership: 32
+        min_salary: 46000
+
 large:
   min_entrants: 3000
   max_entrants: 9999
-  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 31 --min-salary 46000
+  constraints:
+    projections: sabersim
+    mode: showdown
+    runs:
+      - lineups: 200
+        max_weighted_ownership: 31
+        min_salary: 46000
+    rules:
+      no_cpt_qbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      qbA_cpt_requires_2_rb_wr_te_A:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [RB, WR, TE]
+              min: 2
+
+      min_4_from_one_team:
+        enforce:
+          - any_of:
+              - count:
+                  selector:
+                    team: TEAM_A
+                  min: 4
+              - count:
+                  selector:
+                    team: TEAM_B
+                  min: 4
+
 extra_large:
   min_entrants: 10000
   max_entrants: 19999
-  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 30 --min-salary 46000
+  constraints:
+    projections: sabersim
+    mode: showdown
+    runs:
+      - lineups: 200
+        max_weighted_ownership: 30
+        min_salary: 46000
+
 lottery:
   min_entrants: 50000
   max_entrants: 300000
-  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 27 --min-salary 46000
+  constraints:
+    projections: sabersim
+    mode: showdown
+    runs:
+      - lineups: 200
+        max_weighted_ownership: 27
+        min_salary: 46000

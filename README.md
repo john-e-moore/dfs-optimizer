@@ -29,6 +29,75 @@ Outputs are written to `output/<timestamp>/lineups.xlsx` and include:
 
 This project builds optimal daily fantasy NFL lineups for the DraftKings Main Slate. It maximizes projected points while respecting roster rules, salary cap, and optional stacking constraints. Constraints like ownership bounds are enforced during optimization, and a clear Excel report is produced with multiple tabs.
 
+### Contest YAMLs and showdown constraint DSL
+
+Field-size specific settings for both classic and showdown pipelines live in:
+- `src/contests.yaml` (classic)
+- `src/contests-showdown.yaml` (showdown)
+
+Each file defines labels (e.g., `small`, `medium`, `large`) with entrant ranges and a `constraints` block. For example, a showdown entry:
+
+```yaml
+large:
+  min_entrants: 3000
+  max_entrants: 9999
+  constraints:
+    projections: sabersim
+    mode: showdown
+    runs:
+      - lineups: 200
+        max_weighted_ownership: 31
+        min_salary: 46000
+    rules:
+      no_cpt_qbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: QB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+      qbA_cpt_requires_2_rb_wr_te_A:
+        when:
+          count:
+            selector:
+              slot: CPT
+              pos: QB
+              team: TEAM_A
+            min: 1
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos_in: [RB, WR, TE]
+              min: 2
+      min_4_from_one_team:
+        enforce:
+          - any_of:
+              - count:
+                  selector:
+                    team: TEAM_A
+                  min: 4
+              - count:
+                  selector:
+                    team: TEAM_B
+                  min: 4
+```
+
+- **runs**: structured equivalents of the old `run_N: bash run.sh ...` strings. Each run maps directly to `run.sh`/`src.cli` flags (e.g., `lineups`, `stack`, `bringback`, `game_stack`, `max_weighted_ownership`, `min_salary`).
+- **rules**: a small showdown DSL:
+  - `selector`: filters players by `slot` (`CPT`/`FLEX`), `team`, `pos`, `pos_in`, or `type` (e.g., `DST`).
+  - `count`: enforces min/max counts for a selector.
+  - `forbid`: forbids lineups that contain at least one player from each of two selectors.
+  - `any_of`: logical OR across nested clauses.
+  - `when`: optional condition (currently only `count`) that must be true before `enforce` clauses apply.
+
+When you run the full pipeline (`scripts/run_full_pipeline.py`) in showdown mode, it reads `contests-showdown.yaml`, passes the appropriate label to `src.cli`, and the showdown optimizer filters out any lineups that violate the active `rules` for that label.
+
 ### What it does (in plain terms)
 - Reads a CSV of player projections (name, team, position, salary, projection, ownership).
 - Uses mathematical optimization to choose the best 9-player lineup:

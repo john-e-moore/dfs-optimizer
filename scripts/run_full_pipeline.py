@@ -12,7 +12,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd  # type: ignore
 import yaml  # type: ignore
@@ -24,6 +24,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from tools.aggregate_lineups import aggregate, Source as AggSource  # type: ignore
 from src.dk_upload import load_dk_entries, format_lineups_for_dk  # type: ignore
+from src.constraints import parse_rules_mapping  # type: ignore
 
 
 DATA_DIR = PROJECT_ROOT / "data"
@@ -103,19 +104,63 @@ def load_classification_info() -> Tuple[pd.DataFrame, Dict[str, int], List[str]]
 	return df, quotas, present_labels
 
 
-def read_yaml_runs(yaml_path: Path) -> Dict[str, Dict[str, str]]:
+def read_yaml_runs(yaml_path: Path) -> Dict[str, List[Dict[str, Any]]]:
 	with open(yaml_path, "r", encoding="utf-8") as f:
 		yml = yaml.safe_load(f) or {}
 	if not isinstance(yml, dict):
 		_fail(f"Unexpected YAML structure in {yaml_path}")
-	# Keep sections: each label maps to dict of run_* plus thresholds
-	out: Dict[str, Dict[str, str]] = {}
+
+	out: Dict[str, List[Dict[str, Any]]] = {}
 	for label, cfg in yml.items():
 		if not isinstance(cfg, dict):
 			continue
-		runs = {k: v for k, v in cfg.items() if isinstance(k, str) and k.startswith("run_") and isinstance(v, str)}
-		if runs:
-			out[label] = runs
+
+		# New-style: per-label `constraints` with optional `runs` list and defaults
+		constraints = cfg.get("constraints", {})
+		runs_list: List[Dict[str, Any]] = []
+		if isinstance(constraints, dict):
+			# Validate showdown rules eagerly if present
+			rules_raw = constraints.get("rules")
+			if isinstance(rules_raw, dict):
+				try:
+					parse_rules_mapping(rules_raw)
+				except Exception as exc:
+					_fail(f"Invalid showdown constraint rules for '{label}' in {yaml_path}: {exc}")
+
+			global_defaults = {
+				k: v
+				for k, v in constraints.items()
+				if k not in {"runs", "rules"}
+			}
+			raw_runs = constraints.get("runs") or []
+			if isinstance(raw_runs, list):
+				for run_cfg in raw_runs:
+					if isinstance(run_cfg, dict):
+						merged: Dict[str, Any] = dict(global_defaults)
+						merged.update(run_cfg)
+						runs_list.append(merged)
+
+		# Backwards-compatible: fall back to legacy run_N strings if no structured runs
+		if not runs_list:
+			legacy_runs = {
+				k: v
+				for k, v in cfg.items()
+				if isinstance(k, str) and k.startswith("run_") and isinstance(v, str)
+			}
+			if legacy_runs:
+				# Preserve ordering by run_1, run_2, ...
+				def _run_key(k: str) -> Tuple[int, str]:
+					try:
+						return (int(k.split("_", 1)[1]), k)
+					except Exception:
+						return (999999, k)
+
+				for key in sorted(legacy_runs.keys(), key=_run_key):
+					runs_list.append({"_legacy": legacy_runs[key]})
+
+		if runs_list:
+			out[label] = runs_list
+
 	return out
 
 
@@ -154,30 +199,96 @@ class BundleResult:
 	sources: List[Tuple[Path, str]]
 
 
-def bundle_for_label(ts: str, label: str, run_map: Dict[str, str]) -> BundleResult:
+def bundle_for_label(ts: str, label: str, runs: List[Dict[str, Any]]) -> BundleResult:
 	_log(f"Bundling runs for '{label}'")
-	# Order runs by run_1, run_2, ...
-	def _run_key(k: str) -> Tuple[int, str]:
-		try:
-			return (int(k.split("_", 1)[1]), k)
-		except Exception:
-			return (999999, k)
-	ordered = [k for k in sorted(run_map.keys(), key=_run_key)]
-	if not ordered:
+	if not runs:
 		_fail(f"No runs defined in YAML for '{label}'")
 	base_intermediate = OUTPUT_DIR / ts / "bundle" / "intermediate" / label
 	base_intermediate.mkdir(parents=True, exist_ok=True)
 	sources: List[Tuple[Path, str]] = []
-	for idx, key in enumerate(ordered, start=1):
-		args = _extract_run_args(run_map[key])
+
+	def _bool_env_value(val: Any) -> Optional[str]:
+		if isinstance(val, bool):
+			return "1" if val else None
+		if val is None:
+			return None
+		s = str(val).strip().lower()
+		if s in {"1", "true", "yes", "on", "enable"}:
+			return "1"
+		return None
+
+	for idx, run_cfg in enumerate(runs, start=1):
 		run_token = f"Run{idx}"
 		run_dir = base_intermediate / run_token
 		run_dir.mkdir(parents=True, exist_ok=True)
+
 		env = os.environ.copy()
 		env["OUTDIR"] = str(run_dir)
-		cmd = ["bash", "run.sh", *args]
-		_log(f"Executing ({label}/{run_token}): {' '.join(cmd)}")
-		subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env, check=False)
+		# For showdown runs, propagate the field-size label so src.cli can load
+		# label-specific showdown rules from the contests-showdown.yaml file.
+		env["DFS_SHOWDOWN_FIELD_SIZE_LABEL"] = label
+
+		# Legacy path: run_cfg provides a raw command string
+		if "_legacy" in run_cfg:
+			args = _extract_run_args(str(run_cfg["_legacy"]))
+			cmd = ["bash", "run.sh", *args]
+			_log(f"Executing ({label}/{run_token}) [legacy]: {' '.join(cmd)}")
+			subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env, check=False)
+		else:
+			# Structured path: build env vars for run.sh based on config
+			# Core numeric parameters
+			if "lineups" in run_cfg:
+				env["LINEUPS"] = str(run_cfg["lineups"])
+			if "min_salary" in run_cfg:
+				env["MIN_SALARY"] = str(run_cfg["min_salary"])
+			if "stack" in run_cfg:
+				env["STACK"] = str(run_cfg["stack"])
+			if "game_stack" in run_cfg:
+				env["GAME_STACK"] = str(run_cfg["game_stack"])
+			if "game_stack_target" in run_cfg:
+				env["GAME_STACK_TARGET"] = str(run_cfg["game_stack_target"])
+
+			# Ownership / projection thresholds
+			key_map = {
+				"min_sum_projection": "MIN_SUM_PROJECTION",
+				"max_sum_projection": "MAX_SUM_PROJECTION",
+				"min_sum_ownership": "MIN_SUM_OWNERSHIP",
+				"max_sum_ownership": "MAX_SUM_OWNERSHIP",
+				"min_product_ownership": "MIN_PRODUCT_OWNERSHIP",
+				"max_product_ownership": "MAX_PRODUCT_OWNERSHIP",
+				"min_weighted_ownership": "MIN_WEIGHTED_OWNERSHIP",
+				"max_weighted_ownership": "MAX_WEIGHTED_OWNERSHIP",
+			}
+			for yaml_key, env_key in key_map.items():
+				if yaml_key in run_cfg and run_cfg[yaml_key] is not None:
+					env[env_key] = str(run_cfg[yaml_key])
+
+			# Booleans toggles
+			if _bool_env_value(run_cfg.get("allow_qb_vs_dst")):
+				env["ALLOW_QB_VS_DST"] = "1"
+			if _bool_env_value(run_cfg.get("allow_rb_vs_dst")):
+				env["ALLOW_RB_VS_DST"] = "1"
+			if _bool_env_value(run_cfg.get("rb_dst_stack")):
+				env["RB_DST_STACK"] = "1"
+			if _bool_env_value(run_cfg.get("bringback")):
+				env["BRINGBACK"] = "1"
+
+			# Projections / mode
+			projections = str(run_cfg.get("projections", "")).strip().lower()
+			if projections == "sabersim":
+				# Use SaberSim projections (classic) or showdown SaberSim CSV
+				env["SABERSIM"] = "1"
+			elif projections:
+				# Treat as explicit projections path
+				env["PROJECTIONS"] = projections
+
+			mode = str(run_cfg.get("mode", "")).strip().lower()
+			if mode == "showdown":
+				env["SHOWDOWN"] = "1"
+
+			cmd = ["bash", "run.sh"]
+			_log(f"Executing ({label}/{run_token}) [structured]: {' '.join(cmd)} with env overrides")
+			subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env, check=False)
 		out_xlsx = _find_latest_child_output(run_dir)
 		if out_xlsx and out_xlsx.exists():
 			sources.append((out_xlsx, run_token))
@@ -467,6 +578,9 @@ def main() -> int:
 	ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 	yaml_path = _contests_yaml_path(args.showdown)
 	yaml_name = yaml_path.name
+	# Expose showdown rules path to downstream runs (used by src.cli in showdown mode)
+	if args.showdown:
+		os.environ["DFS_SHOWDOWN_RULES_PATH"] = str(yaml_path)
 	ensure_inputs(args.showdown)
 	# Step 2: contests + classification
 	run_get_contests(args.date, args.showdown)
