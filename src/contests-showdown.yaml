@@ -95,6 +95,34 @@ small:
                 pos_in: [WR, TE]
               min: 1
 
+      three_wr_te_A_requires_qbA:
+        when:
+          count:
+            selector:
+              team: TEAM_A
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos: QB
+              min: 1
+
+      three_wr_te_B_requires_qbB:
+        when:
+          count:
+            selector:
+              team: TEAM_B
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos: QB
+              min: 1
+
       # min_5_from_one_team:
       #   enforce:
       #     - any_of:
@@ -201,6 +229,34 @@ medium:
               selector:
                 team: TEAM_B
                 pos_in: [WR, TE]
+              min: 1
+
+      three_wr_te_A_requires_qbA:
+        when:
+          count:
+            selector:
+              team: TEAM_A
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos: QB
+              min: 1
+
+      three_wr_te_B_requires_qbB:
+        when:
+          count:
+            selector:
+              team: TEAM_B
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos: QB
               min: 1
 
       # min_5_from_one_team:
@@ -311,6 +367,34 @@ large:
                 pos_in: [WR, TE]
               min: 1
 
+      three_wr_te_A_requires_qbA:
+        when:
+          count:
+            selector:
+              team: TEAM_A
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos: QB
+              min: 1
+
+      three_wr_te_B_requires_qbB:
+        when:
+          count:
+            selector:
+              team: TEAM_B
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos: QB
+              min: 1
+
       # min_5_from_one_team:
       #   enforce:
       #     - any_of:
@@ -419,6 +503,34 @@ extra_large:
                 pos_in: [WR, TE]
               min: 1
 
+      three_wr_te_A_requires_qbA:
+        when:
+          count:
+            selector:
+              team: TEAM_A
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos: QB
+              min: 1
+
+      three_wr_te_B_requires_qbB:
+        when:
+          count:
+            selector:
+              team: TEAM_B
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos: QB
+              min: 1
+
       # min_5_from_one_team:
       #   enforce:
       #     - any_of:
@@ -525,6 +637,34 @@ lottery:
               selector:
                 team: TEAM_B
                 pos_in: [WR, TE]
+              min: 1
+
+      three_wr_te_A_requires_qbA:
+        when:
+          count:
+            selector:
+              team: TEAM_A
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_A
+                pos: QB
+              min: 1
+
+      three_wr_te_B_requires_qbB:
+        when:
+          count:
+            selector:
+              team: TEAM_B
+              pos_in: [WR, TE]
+            min: 3
+        enforce:
+          - count:
+              selector:
+                team: TEAM_B
+                pos: QB
               min: 1
 
       # min_5_from_one_team:
