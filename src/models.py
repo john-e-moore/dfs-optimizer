@@ -26,6 +26,7 @@ class Player:
 class Parameters:
     lineup_count: int = 5000
     min_salary: int = 45000
+    max_salary: int = 50000
     allow_qb_vs_dst: bool = False
     allow_rb_vs_dst: bool = False
     stack: int = 1
@@ -53,7 +54,7 @@ class Parameters:
 
     def validate(self) -> None:
         assert self.lineup_count > 0
-        assert 0 <= self.min_salary <= 50000
+        assert 0 <= self.min_salary <= self.max_salary <= 50000
         assert self.stack >= 0
         assert self.game_stack >= 0
         if self.game_stack_target is not None:

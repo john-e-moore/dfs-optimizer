@@ -5,6 +5,7 @@ set -euo pipefail
 : "${PROJECTIONS:=data/projections_small.csv}"
 : "${LINEUPS:=100}"
 : "${MIN_SALARY:=45000}"
+: "${MAX_SALARY:=50000}"
 : "${STACK:=0}"
 : "${GAME_STACK:=0}"
 : "${GAME_STACK_TARGET:=}"
@@ -42,6 +43,7 @@ ARGS=(
 	--projections "$PROJECTIONS"
 	--lineups "$LINEUPS"
 	--min-salary "$MIN_SALARY"
+	--max-salary "$MAX_SALARY"
 	--stack "$STACK"
 	--game-stack "$GAME_STACK"
 	${GAME_STACK_TARGET:+--game-stack-target "$GAME_STACK_TARGET"}

@@ -241,6 +241,8 @@ def bundle_for_label(ts: str, label: str, runs: List[Dict[str, Any]]) -> BundleR
 				env["LINEUPS"] = str(run_cfg["lineups"])
 			if "min_salary" in run_cfg:
 				env["MIN_SALARY"] = str(run_cfg["min_salary"])
+			if "max_salary" in run_cfg:
+				env["MAX_SALARY"] = str(run_cfg["max_salary"])
 			if "stack" in run_cfg:
 				env["STACK"] = str(run_cfg["stack"])
 			if "game_stack" in run_cfg:

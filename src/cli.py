@@ -39,6 +39,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                    help="Optimize DraftKings showdown (CPT + 5 FLEX) using SaberSim CSV")
     p.add_argument("--lineups", type=int, default=5000)
     p.add_argument("--min-salary", type=int, default=45000)
+    p.add_argument("--max-salary", type=int, default=50000,
+                   help="Maximum total salary per lineup (default 50000)")
     p.add_argument("--allow-qb-vs-dst", action="store_true")
     p.add_argument("--allow-rb-vs-dst", action="store_true")
     p.add_argument("--stack", type=int, default=1)
@@ -173,6 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     params = Parameters(
         lineup_count=args.lineups,
         min_salary=args.min_salary,
+        max_salary=args.max_salary,
         allow_qb_vs_dst=args.allow_qb_vs_dst,
         allow_rb_vs_dst=args.allow_rb_vs_dst,
         stack=args.stack,

@@ -9,6 +9,7 @@ small:
       - lineups: 20
         max_weighted_ownership: 34
         min_salary: 48500
+        max_salary: 49500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -116,6 +117,7 @@ medium:
       - lineups: 20
         max_weighted_ownership: 32
         min_salary: 48000
+        max_salary: 49500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -223,6 +225,7 @@ large:
       - lineups: 20
         max_weighted_ownership: 31
         min_salary: 47500
+        max_salary: 49500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -330,6 +333,7 @@ extra_large:
       - lineups: 20
         max_weighted_ownership: 30
         min_salary: 47000
+        max_salary: 49500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:
@@ -437,6 +441,7 @@ lottery:
       - lineups: 20
         max_weighted_ownership: 27
         min_salary: 46000
+        max_salary: 49500
     rules:
       no_cpt_qbA_with_dstB:
         enforce:

@@ -57,7 +57,14 @@ def synthetic_players_df():
 def test_generate_lineups_minimal():
     df = synthetic_players_df()
     players = players_from_df(df)
-    params = Parameters(lineup_count=3, min_salary=45000, stack=1, game_stack=0, allow_qb_vs_dst=False)
+    params = Parameters(
+        lineup_count=3,
+        min_salary=45000,
+        max_salary=50000,
+        stack=1,
+        game_stack=0,
+        allow_qb_vs_dst=False,
+    )
     lineups = generate_lineups(players, params)
     assert 1 <= len(lineups) <= 3
     df_lineups = lineups_to_dataframe(lineups)
@@ -72,7 +79,7 @@ def test_stack_enforced():
     df = synthetic_players_df()
     players = players_from_df(df)
     # Require stack of 2 WR/TE with QB team
-    params = Parameters(lineup_count=1, min_salary=43000, stack=2)
+    params = Parameters(lineup_count=1, min_salary=43000, max_salary=50000, stack=2)
     lineups = generate_lineups(players, params)
     assert len(lineups) >= 1
     stacked = lineups[0].stack_positions
@@ -82,7 +89,7 @@ def test_stack_enforced():
 def test_lineup_uniqueness():
     df = synthetic_players_df()
     players = players_from_df(df)
-    params = Parameters(lineup_count=2, min_salary=43000)
+    params = Parameters(lineup_count=2, min_salary=43000, max_salary=50000)
     lineups = generate_lineups(players, params)
     assert len(lineups) >= 1
     if len(lineups) == 2:
@@ -99,6 +106,7 @@ def test_rb_vs_dst_constraint_disallows_when_false():
     params = Parameters(
         lineup_count=1,
         min_salary=43000,
+        max_salary=50000,
         allow_qb_vs_dst=True,
         allow_rb_vs_dst=False,
         included_players={"RB1", "RB3"},
@@ -114,6 +122,7 @@ def test_rb_vs_dst_constraint_allows_when_true():
     params = Parameters(
         lineup_count=1,
         min_salary=43000,
+        max_salary=50000,
         allow_qb_vs_dst=True,
         allow_rb_vs_dst=True,
         included_players={"RB1", "RB3"},
@@ -121,3 +130,18 @@ def test_rb_vs_dst_constraint_allows_when_true():
     lineups = generate_lineups(players, params)
     # With flag enabled, at least one lineup should be feasible
     assert len(lineups) >= 1
+
+
+def test_classic_respects_max_salary_cap():
+    df = synthetic_players_df()
+    players = players_from_df(df)
+    # Force a tight cap slightly below the natural maximum to ensure it is enforced.
+    params = Parameters(
+        lineup_count=1,
+        min_salary=43000,
+        max_salary=49500,
+    )
+    lineups = generate_lineups(players, params)
+    # Either no feasible lineups or all must respect the cap
+    for lu in lineups:
+        assert lu.total_salary <= 49500

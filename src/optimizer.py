@@ -227,7 +227,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
     prob += pulp.lpSum(x[i] for i in pos_idxs["TE"]) >= 1
 
     # Salary bounds
-    prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= 50000
+    prob += pulp.lpSum(players[i].salary * x[i] for i in index) <= params.max_salary
     prob += pulp.lpSum(players[i].salary * x[i] for i in index) >= params.min_salary
 
     # Lineup-level projection bounds
@@ -396,7 +396,7 @@ def generate_lineups(players: List[Player], params: Parameters, max_lineups: int
         assert sum(1 for p in selected_players if p.position == "TE") >= 1
 
         total_salary = sum(p.salary for p in selected_players)
-        assert params.min_salary <= total_salary <= 50000
+        assert params.min_salary <= total_salary <= params.max_salary
 
         total_projection = sum(p.projection for p in selected_players)
         sum_ownership = sum(p.ownership for p in selected_players)

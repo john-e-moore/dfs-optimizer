@@ -62,6 +62,7 @@ def test_generate_lineups_respects_min_5_from_one_team_rule():
     params = Parameters(
         lineup_count=5,
         min_salary=0,  # keep salary constraint loose for synthetic test
+        max_salary=50000,
         solver_threads=1,
     )
     rules = _build_min_5_from_one_team_rule()
@@ -78,5 +79,37 @@ def test_generate_lineups_respects_min_5_from_one_team_rule():
         assert (
             count_a >= 5 or count_b >= 5
         ), f"Lineup violates min_5_from_one_team: TEAM_A={count_a}, TEAM_B={count_b}"
+
+
+def test_showdown_respects_max_salary_cap():
+    # Simple pool where optimal projected lineup would hit the full 50k cap if allowed.
+    entries = []
+    # Build 6 players whose combined salary is 50000
+    salaries = [9000, 9000, 9000, 9000, 9000, 5000]
+    roles = ["CPT", "FLEX", "FLEX", "FLEX", "FLEX", "FLEX"]
+    for i, (sal, role) in enumerate(zip(salaries, roles), start=1):
+        entries.append(
+            ShowdownEntry(
+                name=f"P{i}",
+                team="A",
+                opponent="B",
+                position="WR",
+                role=role,
+                salary=sal,
+                projection=10.0 + i,  # strictly increasing to encourage taking all
+                ownership=0.1,
+            )
+        )
+
+    params = Parameters(
+        lineup_count=1,
+        min_salary=0,
+        max_salary=49500,
+        solver_threads=1,
+    )
+
+    lineups = generate_lineups_showdown(entries, params)
+    assert len(lineups) == 1
+    assert lineups[0].total_salary <= 49500
 
 

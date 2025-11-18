@@ -237,7 +237,7 @@ def generate_lineups_showdown(
     prob += pulp.lpSum(x[i] for i in flex_idxs) == 5
 
     # Salary bounds
-    prob += pulp.lpSum(entries[i].salary * x[i] for i in index) <= 50000
+    prob += pulp.lpSum(entries[i].salary * x[i] for i in index) <= params.max_salary
     prob += pulp.lpSum(entries[i].salary * x[i] for i in index) >= params.min_salary
 
     # Cannot select both CPT and FLEX of same player (by Name+Team)
@@ -405,7 +405,7 @@ def generate_lineups_showdown(
                 continue
         assert sum(1 for e in selected if e.role == "CPT") == 1
         total_salary = sum(e.salary for e in selected)
-        assert params.min_salary <= total_salary <= 50000
+        assert params.min_salary <= total_salary <= params.max_salary
         total_projection = sum(e.projection for e in selected)
         sum_ownership = sum(e.ownership for e in selected)
         product_ownership = 1.0
