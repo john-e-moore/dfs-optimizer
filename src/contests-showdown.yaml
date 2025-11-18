@@ -2,20 +2,20 @@
 small:
   min_entrants: 0
   max_entrants: 999
-  run_1: bash run.sh --ss --showdown --lineups 500 --max-weighted-ownership 34 --min-salary 46000
+  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 34 --min-salary 46000
 medium:
   min_entrants: 1000
   max_entrants: 2999
-  run_1: bash run.sh --ss --showdown --lineups 500 --max-weighted-ownership 32 --min-salary 46000
+  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 32 --min-salary 46000
 large:
   min_entrants: 3000
   max_entrants: 9999
-  run_1: bash run.sh --ss --showdown --lineups 500 --max-weighted-ownership 31 --min-salary 46000
+  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 31 --min-salary 46000
 extra_large:
   min_entrants: 10000
   max_entrants: 19999
-  run_1: bash run.sh --ss --showdown --lineups 500 --max-weighted-ownership 30 --min-salary 46000
+  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 30 --min-salary 46000
 lottery:
   min_entrants: 50000
-  max_entrants: 99999999
-  run_1: bash run.sh --ss --showdown --lineups 500 --max-weighted-ownership 27 --min-salary 46000
+  max_entrants: 300000
+  run_1: bash run.sh --ss --showdown --lineups 200 --max-weighted-ownership 27 --min-salary 46000

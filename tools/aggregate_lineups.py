@@ -172,6 +172,8 @@ def aggregate(out_path: str, column_name: str, sources: List[Source], sheet_name
             if not matching_cols:
                 raise ValueError(f"Missing column '{column_name}' in combined data")
             series = combined.iloc[:, matching_cols[-1]]
+            # Ensure the series has a name for stable column renaming
+            series.name = column_name
             summary = (
                 series.astype(object)
                 .fillna("")

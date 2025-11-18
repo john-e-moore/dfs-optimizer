@@ -128,9 +128,13 @@ def format_lineups_for_dk(
         return lineups_df.copy()
 
     out = lineups_df.copy()
-    player_cols_all = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
-    player_cols = [c for c in player_cols_all if c in out.columns]
+    # Detect classic vs showdown roster columns
+    classic_cols_all = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
+    showdown_cols_all = ["CPT", "FLEX1", "FLEX2", "FLEX3", "FLEX4", "FLEX5"]
+    is_showdown = any(c in out.columns for c in ("CPT", "FLEX1", "FLEX2", "FLEX3", "FLEX4", "FLEX5"))
+    player_cols = [c for c in (showdown_cols_all if is_showdown else classic_cols_all) if c in out.columns]
     if not player_cols:
+        # No recognized player columns; return unchanged
         return out
 
     # Build name map from DK entries (and optional override)

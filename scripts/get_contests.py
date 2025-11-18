@@ -6,6 +6,7 @@ number of entrants and field-size classification, and write the classified CSV.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import sys
@@ -151,13 +152,22 @@ def load_contests_frame(contests_path: Path) -> pd.DataFrame:
 
 def read_entries_first_n_columns(entries_path: Path, n: int) -> pd.DataFrame:
     try:
-        df_all = pd.read_csv(entries_path)
+        with entries_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration:
+                raise SystemExit(f"Empty CSV: {entries_path}")
+            columns = header[:n]
+            if "Contest ID" not in columns:
+                raise SystemExit("Expected 'Contest ID' column within the first columns of DKEntries.csv header.")
+            rows: List[List[str]] = []
+            for row in reader:
+                trimmed = (row[:n] + [""] * n)[:n]
+                rows.append(trimmed)
     except FileNotFoundError as exc:
         raise SystemExit(f"Missing input file: {entries_path}") from exc
-    # Take the first N columns by position to avoid issues with duplicate names
-    df = df_all.iloc[:, :n].copy()
-    if "Contest ID" not in df.columns:
-        raise SystemExit("Expected 'Contest ID' column in DKEntries.csv (with header).")
+    df = pd.DataFrame(rows, columns=columns)
     # Normalize IDs on the entries side
     df["Contest ID"] = df["Contest ID"].map(normalize_contest_id)
     return df

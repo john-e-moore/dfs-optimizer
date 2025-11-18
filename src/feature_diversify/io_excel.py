@@ -41,6 +41,15 @@ ROSTER_COLS_CANONICAL: Tuple[str, ...] = (
     "DST",
 )
 
+ROSTER_COLS_SHOWDOWN: Tuple[str, ...] = (
+    "CPT",
+    "FLEX1",
+    "FLEX2",
+    "FLEX3",
+    "FLEX4",
+    "FLEX5",
+)
+
 
 def parse_source_key(spec: str) -> SourceKey:
     if ":" in spec:
@@ -78,10 +87,14 @@ def _detect_roster_columns(df: pd.DataFrame, explicit: Optional[Sequence[str]] =
     if explicit:
         cols = [c for c in explicit if c in df.columns]
         return cols if len(cols) >= 7 else None
-    present = [c for c in ROSTER_COLS_CANONICAL if c in df.columns]
-    # Require enough slots to form a lineup (most sheets should have all 9)
-    if len(present) >= 7:
-        return present
+    # Classic detection
+    present_classic = [c for c in ROSTER_COLS_CANONICAL if c in df.columns]
+    if len(present_classic) >= 7:
+        return present_classic
+    # Showdown detection
+    present_showdown = [c for c in ROSTER_COLS_SHOWDOWN if c in df.columns]
+    if len(present_showdown) >= 5:
+        return present_showdown
     return None
 
 

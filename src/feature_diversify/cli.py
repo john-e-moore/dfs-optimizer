@@ -190,7 +190,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     # Build DK-ready replica of Selected (player cells formatted as "Name (ID)")
     try:
-        player_cols_all = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]
+        player_cols_all = ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST", "CPT", "FLEX1", "FLEX2", "FLEX3", "FLEX4", "FLEX5"]
         player_cols = [c for c in player_cols_all if c in selected_df.columns]
         proj_min = pd.DataFrame({"Name": []})
         if player_cols:

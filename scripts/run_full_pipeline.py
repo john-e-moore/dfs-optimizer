@@ -236,7 +236,7 @@ def read_diversified_for_upload(diversified_path: Path) -> pd.DataFrame:
 	dk_entries_df = load_dk_entries(str(DK_ENTRIES_PATH))
 	# Minimal projections frame for IDs (names only)
 	names: List[str] = []
-	for col in ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST"]:
+	for col in ["QB", "RB1", "RB2", "WR1", "WR2", "WR3", "TE", "FLEX", "DST", "CPT", "FLEX1", "FLEX2", "FLEX3", "FLEX4", "FLEX5"]:
 		if col in selected.columns:
 			names.extend([str(v) for v in selected[col].dropna().astype(str).tolist()])
 	unique_names = sorted(set(names))
@@ -252,6 +252,7 @@ def build_upload_csv(
 	label_by_source_file: Dict[str, str],
 ) -> Path:
 	df_dk = read_diversified_for_upload(diversified_path)
+	is_showdown = "CPT" in df_dk.columns or "FLEX1" in df_dk.columns
 	# Ensure necessary player columns exist (renames)
 	col_map = {
 		"RB1": "RB1",
@@ -279,17 +280,27 @@ def build_upload_csv(
 				label = None
 		if not label:
 			continue
-		rec = {
-			"QB": row.get("QB", ""),
-			"RB1": row.get("RB1", row.get("RB", "")),
-			"RB2": row.get("RB2", ""),
-			"WR1": row.get("WR1", row.get("WR", "")),
-			"WR2": row.get("WR2", ""),
-			"WR3": row.get("WR3", ""),
-			"TE": row.get("TE", ""),
-			"FLEX": row.get("FLEX", ""),
-			"DST": row.get("DST", ""),
-		}
+		if is_showdown:
+			rec = {
+				"CPT": row.get("CPT", ""),
+				"FLEX1": row.get("FLEX1", row.get("FLEX", "")),
+				"FLEX2": row.get("FLEX2", ""),
+				"FLEX3": row.get("FLEX3", ""),
+				"FLEX4": row.get("FLEX4", ""),
+				"FLEX5": row.get("FLEX5", ""),
+			}
+		else:
+			rec = {
+				"QB": row.get("QB", ""),
+				"RB1": row.get("RB1", row.get("RB", "")),
+				"RB2": row.get("RB2", ""),
+				"WR1": row.get("WR1", row.get("WR", "")),
+				"WR2": row.get("WR2", ""),
+				"WR3": row.get("WR3", ""),
+				"TE": row.get("TE", ""),
+				"FLEX": row.get("FLEX", ""),
+				"DST": row.get("DST", ""),
+			}
 		selected_by_label.setdefault(label, []).append(rec)
 	# Prepare contest rows per classification in original order
 	required_cols = ["Entry ID", "Contest Name", "Contest ID", "Entry Fee"]
@@ -306,85 +317,147 @@ def build_upload_csv(
 		for i in range(len(contests)):
 			crow = contests.iloc[i]
 			lrow = lineups[i]
-			out_rows.append(
-				{
-					"Entry ID": crow.get("Entry ID", ""),
-					"Contest Name": crow.get("Contest Name", ""),
-					"Contest ID": crow.get("Contest ID", ""),
-					"Entry Fee": crow.get("Entry Fee", ""),
-					"QB": lrow["QB"],
-					"RB": lrow["RB1"],
-					"RB.1": lrow["RB2"],  # second RB duplicate column label disambiguated on CSV write/read
-					"WR": lrow["WR1"],
-					"WR.1": lrow["WR2"],
-					"WR.2": lrow["WR3"],
-					"TE": lrow["TE"],
-					"FLEX": lrow["FLEX"],
-					"DST": lrow["DST"],
-				}
-			)
+			if is_showdown:
+				out_rows.append(
+					{
+						"Entry ID": crow.get("Entry ID", ""),
+						"Contest Name": crow.get("Contest Name", ""),
+						"Contest ID": crow.get("Contest ID", ""),
+						"Entry Fee": crow.get("Entry Fee", ""),
+						"CPT": lrow["CPT"],
+						"FLEX1": lrow["FLEX1"],
+						"FLEX2": lrow["FLEX2"],
+						"FLEX3": lrow["FLEX3"],
+						"FLEX4": lrow["FLEX4"],
+						"FLEX5": lrow["FLEX5"],
+					}
+				)
+			else:
+				out_rows.append(
+					{
+						"Entry ID": crow.get("Entry ID", ""),
+						"Contest Name": crow.get("Contest Name", ""),
+						"Contest ID": crow.get("Contest ID", ""),
+						"Entry Fee": crow.get("Entry Fee", ""),
+						"QB": lrow["QB"],
+						"RB": lrow["RB1"],
+						"RB.1": lrow["RB2"],
+						"WR": lrow["WR1"],
+						"WR.1": lrow["WR2"],
+						"WR.2": lrow["WR3"],
+						"TE": lrow["TE"],
+						"FLEX": lrow["FLEX"],
+						"DST": lrow["DST"],
+					}
+				)
 	if not out_rows:
 		_fail("No output rows produced for upload CSV")
-	# Build DataFrame with exact first 13 columns in order
+	# Build DataFrame with exact header order
 	# Note: pandas will prevent exact duplicate column names; we use suffixes for the second RB and WR columns,
 	# then rename to duplicate names when writing CSV via manual writer to preserve headers exactly.
 	df_out = pd.DataFrame(out_rows)
 	# Compose the final header order including duplicates
-	final_headers = [
-		"Entry ID",
-		"Contest Name",
-		"Contest ID",
-		"Entry Fee",
-		"QB",
-		"RB",
-		"RB.1",
-		"WR",
-		"WR.1",
-		"WR.2",
-		"TE",
-		"FLEX",
-		"DST",
-	]
+	if is_showdown:
+		final_headers = [
+			"Entry ID",
+			"Contest Name",
+			"Contest ID",
+			"Entry Fee",
+			"CPT",
+			"FLEX1",
+			"FLEX2",
+			"FLEX3",
+			"FLEX4",
+			"FLEX5",
+		]
+	else:
+		final_headers = [
+			"Entry ID",
+			"Contest Name",
+			"Contest ID",
+			"Entry Fee",
+			"QB",
+			"RB",
+			"RB.1",
+			"WR",
+			"WR.1",
+			"WR.2",
+			"TE",
+			"FLEX",
+			"DST",
+		]
 	out_path = OUTPUT_DIR / ts / "DKEntries.csv"
 	out_path.parent.mkdir(parents=True, exist_ok=True)
 	# Write CSV with exact header names requested:
 	with open(out_path, "w", encoding="utf-8", newline="") as f:
 		writer = csv.writer(f)
-		writer.writerow(
-			[
-				"Entry ID",
-				"Contest Name",
-				"Contest ID",
-				"Entry Fee",
-				"QB",
-				"RB",
-				"RB",
-				"WR",
-				"WR",
-				"WR",
-				"TE",
-				"FLEX",
-				"DST",
-			]
-		)
-		for _, r in df_out[final_headers].iterrows():
+		if is_showdown:
+			# Showdown header: duplicate FLEX column names as required by DK
 			writer.writerow(
 				[
-					r["Entry ID"],
-					r["Contest Name"],
-					r["Contest ID"],
-					r["Entry Fee"],
-					r["QB"],
-					r["RB"],
-					r["RB.1"],
-					r["WR"],
-					r["WR.1"],
-					r["WR.2"],
-					r["TE"],
-					r["FLEX"],
-					r["DST"],
+					"Entry ID",
+					"Contest Name",
+					"Contest ID",
+					"Entry Fee",
+					"CPT",
+					"FLEX",
+					"FLEX",
+					"FLEX",
+					"FLEX",
+					"FLEX",
 				]
 			)
+			for _, r in df_out[final_headers].iterrows():
+				writer.writerow(
+					[
+						r["Entry ID"],
+						r["Contest Name"],
+						r["Contest ID"],
+						r["Entry Fee"],
+						r["CPT"],
+						r["FLEX1"],
+						r["FLEX2"],
+						r["FLEX3"],
+						r["FLEX4"],
+						r["FLEX5"],
+					]
+				)
+		else:
+			writer.writerow(
+				[
+					"Entry ID",
+					"Contest Name",
+					"Contest ID",
+					"Entry Fee",
+					"QB",
+					"RB",
+					"RB",
+					"WR",
+					"WR",
+					"WR",
+					"TE",
+					"FLEX",
+					"DST",
+				]
+			)
+			for _, r in df_out[final_headers].iterrows():
+				writer.writerow(
+					[
+						r["Entry ID"],
+						r["Contest Name"],
+						r["Contest ID"],
+						r["Entry Fee"],
+						r["QB"],
+						r["RB"],
+						r["RB.1"],
+						r["WR"],
+						r["WR.1"],
+						r["WR.2"],
+						r["TE"],
+						r["FLEX"],
+						r["DST"],
+					]
+				)
 	return out_path
 
 
