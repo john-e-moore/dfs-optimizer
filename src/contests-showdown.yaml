@@ -6,7 +6,7 @@ small:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 20
+      - lineups: 100
         max_weighted_ownership: 34
         min_salary: 48500
         max_salary: 49900
@@ -31,6 +31,32 @@ small:
                 selector:
                   slot: CPT
                   pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
+
+      no_cpt_rbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      no_cpt_rbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
                   team: TEAM_B
               right:
                 selector:
@@ -142,7 +168,7 @@ medium:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 20
+      - lineups: 100
         max_weighted_ownership: 32
         min_salary: 48000
         max_salary: 49800
@@ -167,6 +193,32 @@ medium:
                 selector:
                   slot: CPT
                   pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
+
+      no_cpt_rbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      no_cpt_rbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
                   team: TEAM_B
               right:
                 selector:
@@ -278,7 +330,7 @@ large:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 20
+      - lineups: 100
         max_weighted_ownership: 31
         min_salary: 47500
         max_salary: 49700
@@ -303,6 +355,32 @@ large:
                 selector:
                   slot: CPT
                   pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
+
+      no_cpt_rbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      no_cpt_rbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
                   team: TEAM_B
               right:
                 selector:
@@ -414,7 +492,7 @@ extra_large:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 20
+      - lineups: 100
         max_weighted_ownership: 30
         min_salary: 47000
         max_salary: 49600
@@ -439,6 +517,32 @@ extra_large:
                 selector:
                   slot: CPT
                   pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
+
+      no_cpt_rbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      no_cpt_rbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
                   team: TEAM_B
               right:
                 selector:
@@ -550,7 +654,7 @@ lottery:
     projections: sabersim
     mode: showdown
     runs:
-      - lineups: 20
+      - lineups: 100
         max_weighted_ownership: 27
         min_salary: 46000
         max_salary: 49500
@@ -575,6 +679,32 @@ lottery:
                 selector:
                   slot: CPT
                   pos: QB
+                  team: TEAM_B
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_A
+
+      no_cpt_rbA_with_dstB:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
+                  team: TEAM_A
+              right:
+                selector:
+                  type: DST
+                  team: TEAM_B
+
+      no_cpt_rbB_with_dstA:
+        enforce:
+          - forbid:
+              left:
+                selector:
+                  slot: CPT
+                  pos: RB
                   team: TEAM_B
               right:
                 selector:
